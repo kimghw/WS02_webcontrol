@@ -28,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<이 SKILL.md 가 있는 �
 | `list` | 바탕화면·시작 메뉴의 CDP 바로가기 전부(`managed`/unmanaged 구분)와 포트 상태 |
 | `status [port]` | 생존 확인 `GET /json/version` → `browser`·`ws`·`targets`(열린 탭). 죽어 있으면 `ok:false, state:stopped`(exit 2) |
 | `launch [port]` | 바로가기에 기록된 것과 같은 인자로 기동 후 최대 `-TimeoutSec`(20초) 대기. 이미 떠 있으면 `already-listening` |
-| `stop [port]` | 그 포트를 가진 chrome.exe **브라우저 프로세스만** 종료(일반 Chrome 무관) |
+| `stop [port]` | 그 포트를 가진 chrome.exe **브라우저 프로세스만** 종료(일반 Chrome 무관). 프로세스를 못 찾아도 포트가 응답하면 `stopped` 로 보고하지 않고 소켓 소유 PID 를 종료하며, 그래도 살아 있으면 `still-listening`(exit 1) |
 | `remove [port]` | managed 바로가기 + 아이콘 삭제, 프로필은 유지. `-Purge` 면 프로필까지(Chrome 이 떠 있으면 거부) |
 | `path` | 사용할 chrome.exe 경로 |
 
@@ -53,11 +53,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<이 SKILL.md 가 있는 �
 1. **포트 확정** — 사용자가 말한 포트 > 프로젝트 채널 표(`spec/spec_아키텍처.md` ② 또는 `port_manager`
    대장) > 기본 9222. 9222 가 다른 프로세스에 잡혀 있으면(`status 9222` 가 `port-in-use-by-other`)
    `port_manager suggest` 로 받는다. SSO 경계(도메인 묶음)마다 채널을 나누므로 시스템이 여럿이면 포트도 여럿이다.
-2. **생성** — `add <port>`. 여러 채널을 운용하면 `-Name "Chrome CDP KRS (9333)"` 처럼 시스템명을 넣고, 검색으로
-   띄우길 원하면 `-StartMenu`. 사용자가 바로 써보길 원하면 `-Launch`.
-3. **검증** — 결과 JSON 의 `preview`(256px PNG)를 `Read` 로 열어 뱃지가 얹혔는지 보고, `shortcuts[]` 경로가
+2. **아이콘 이름 확인** — `add` 를 실행하기 전에 반드시 `AskUserQuestion` 으로 바탕화면에 표시될 아이콘 이름을
+   묻는다(사용자가 요청문에서 이름을 정확히 말한 경우에만 생략). 선택지는 최소 두 개: `Chrome CDP (<port>)`(기본,
+   권장으로 표시) · `Chrome CDP <시스템명> (<port>)`(채널이 여럿일 때, 시스템명은 1단계에서 나온 것). 직접 입력은
+   자동으로 붙는 "Other" 로 받는다. 파일명에 못 쓰는 문자는 스크립트가 `_` 로 바꾸므로 답을 그대로 `-Name` 에 넘긴다.
+3. **생성** — `add <port> -Name "<확인한 이름>"`. 검색으로 띄우길 원하면 `-StartMenu`, 사용자가 바로 써보길 원하면
+   `-Launch`.
+4. **검증** — 결과 JSON 의 `preview`(256px PNG)를 `Read` 로 열어 뱃지가 얹혔는지 보고, `shortcuts[]` 경로가
    존재하는지 확인한다. `-Launch` 였으면 `launch.state == listening` 과 `launch.ws` 를 확인한다.
-4. **보고** — 아래 형식. 이어서 첫 실행 시 그 프로필에서 로그인이 필요하다는 점과, 채널 정의(포트·프로필)를
+5. **보고** — 아래 형식. 이어서 첫 실행 시 그 프로필에서 로그인이 필요하다는 점과, 채널 정의(포트·프로필)를
    프로젝트 바인딩 SSOT(채널 표)에 적어 두라는 점을 짚는다.
 
 ### 제거
@@ -116,6 +120,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<이 SKILL.md 가 있는 �
 - 아이콘을 다시 만들었는데 탐색기가 옛 그림을 보여주면 아이콘 캐시다. 스크립트가 `SHChangeNotify` 를 보내지만
   안 바뀌면 탐색기 재시작/로그오프를 안내한다.
 - Chrome 은 App Paths 레지스트리 → Program Files → LOCALAPPDATA 순으로 찾는다. 포터블 설치는 `-ChromePath`.
+- 프로세스·포트 조회는 WMI(`Win32_Process`, `Get-NetTCPConnection`)가 기본이고, WMI 가 거부되는 환경(Windows Sandbox 는
+  관리자 토큰이어도 Access denied)에서만 `netstat -ano` 로 대체하며 그 사실을 `warnings[]` 에 남긴다. 샌드박스는 스킬
+  검증용일 뿐이고 실제 채널은 이 PC 에서 운용한다.
 
 ## 파일 구성
 

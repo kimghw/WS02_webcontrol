@@ -376,18 +376,48 @@ function Get-CdpTargets([int]$port) {
     } catch { return @() }
 }
 
+function Get-NetstatListeners([int]$port) {
+    # Fallback for environments where the CIM-backed cmdlets are unavailable (Windows Sandbox answers
+    # "Access is denied" for WMI even when elevated). Rows are shaped like Get-NetTCPConnection output.
+    $re = '^\s*TCP\s+(\S+):' + $port + '\s+(\S+)\s+(\S+)\s+(\d+)\s*$'
+    @(netstat -ano -p TCP 2>$null | ForEach-Object {
+        if (($_ -match $re) -and (($Matches[3] -like 'LISTEN*') -or ($Matches[2] -match ':0$'))) {
+            [pscustomobject]@{ LocalAddress = $Matches[1]; LocalPort = $port; OwningProcess = [int]$Matches[4] }
+        }
+    })
+}
+
 function Get-PortListener([int]$port) {
     try {
         return @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop)
-    } catch { return @() }
+    } catch { return @(Get-NetstatListeners $port) }
+}
+
+function Get-SocketOwnerProcesses([int]$port) {
+    # chrome.exe processes that own the LISTENING socket on <port>, shaped like Win32_Process rows.
+    # The listening socket always belongs to the browser process, never to a --type= child.
+    @(Get-NetstatListeners $port | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object {
+        $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
+        if ($p -and $p.Name -eq 'chrome') { [pscustomobject]@{ ProcessId = [int]$_; Name = 'chrome.exe'; CommandLine = $null } }
+    })
 }
 
 function Get-CdpProcesses([int]$port) {
     # Child processes (renderer/gpu/utility) inherit the flag but always carry --type=...; only the
     # browser process lacks it. Killing the browser process is enough: children exit on their own.
+    # WMI is the primary source (the command line is authoritative). Only when WMI itself is unavailable
+    # do we fall back to the owner of the listening socket.
     $re = "--remote-debugging-port=$port(\s|$)"
-    @(Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -and ($_.CommandLine -match $re) -and ($_.CommandLine -notmatch '\s--type=') })
+    try {
+        return @(Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" -ErrorAction Stop |
+            Where-Object { $_.CommandLine -and ($_.CommandLine -match $re) -and ($_.CommandLine -notmatch '\s--type=') })
+    } catch {
+        if (-not $script:WmiWarned) {
+            $script:WmiWarned = $true
+            Warn ('WMI process lookup unavailable (' + $_.Exception.Message.Trim() + '); using the owner of the listening socket instead.')
+        }
+        return @(Get-SocketOwnerProcesses $port)
+    }
 }
 
 function Merge-Endpoint($R, [int]$port, $ver) {
@@ -515,8 +545,19 @@ function Invoke-Stop([int]$port) {
     $procs = @(Get-CdpProcesses $port)
     $R = [ordered]@{ ok = $true; action = 'stop'; port = $port; state = 'stopped'; killed = @() }
     if ($procs.Count -eq 0) {
-        $R.hint = "No chrome.exe with --remote-debugging-port=$port is running."
-        Emit $R 0
+        # Never report "stopped" on the strength of an empty process list alone: the endpoint decides.
+        if (-not (Get-CdpVersion $port)) {
+            $R.hint = "No chrome.exe with --remote-debugging-port=$port is running."
+            Emit $R 0
+        }
+        $procs = @(Get-SocketOwnerProcesses $port)
+        if ($procs.Count -eq 0) {
+            $R.ok = $false; $R.state = 'still-listening'
+            $R.error = "Port $port answers /json/version but no owning chrome.exe could be identified."
+            $R.hint = "Close the Chrome window that uses this profile by hand, then run: status $port"
+            Emit $R 1
+        }
+        Warn ("Process lookup by command line found nothing although port $port answers; stopping the socket owner instead (PID " + (($procs | ForEach-Object { $_.ProcessId }) -join ', ') + ').')
     }
     $killed = New-Object System.Collections.Generic.List[int]
     foreach ($p in $procs) {

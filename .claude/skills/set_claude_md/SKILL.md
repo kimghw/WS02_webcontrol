@@ -1,5 +1,5 @@
 ---
-name: set_claude_md
+name: set-claude-md
 description: 웹 자동화(레시피 아키텍처) 프로젝트의 CLAUDE.md 를 표준 템플릿으로 생성하거나 기존 CLAUDE.md 에 누락된 상시 규약 절을 보강한다. 새 프로젝트 초기화, "CLAUDE.md 만들어/세팅해", 프로젝트 규약·상시 규약 넣기, 5계층(recipes·core·inputs·data·runners)·workflow.yaml SSOT·CDP 정탐·references/spec 문서 규약 적용, spec/·references/·probes/ 골격과 .gitignore 기본값 생성 요청 시 사용. 웹 자동화·스크래핑·브라우저 자동화 프로젝트를 새로 시작할 때 CLAUDE.md 가 없으면 먼저 이 스킬을 쓴다.
 argument-hint: "(없음: 생성/보강) | <프로젝트 한 줄 설명> | check | scaffold | show | help"
 ---
