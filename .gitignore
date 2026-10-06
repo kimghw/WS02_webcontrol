@@ -1,0 +1,19 @@
+# 보안 기본값(CLAUDE.md) — 실값·로그·캡처는 커밋하지 않는다. 커밋은 빈 양식·비식별 fixture·코드·문서만.
+*_inputs/*
+!*_inputs/.gitkeep
+*_data/*
+!*_data/.gitkeep
+logs/
+probes/out/
+captures/
+*.png
+chrome_profile/
+chrome_binding.yaml
+.env*
+!.env*.example
+__pycache__/
+*.pyc
+.venv/
+
+# 생성 견적서(make_quote 산출물) — 실값
+quotes/

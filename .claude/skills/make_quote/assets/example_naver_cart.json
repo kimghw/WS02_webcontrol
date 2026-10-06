@@ -1,0 +1,39 @@
+{
+  "_source": "네이버 스토어 장바구니 캡처 예시(2026-09-30). 화면: 일반배송 탭(양말하우스 1건) 표시 중, 컬리N마트·지금배달 탭 1건은 미표시.",
+  "meta": {
+    "title": null,
+    "quote_no": null,
+    "quote_date": null,
+    "valid_until": null,
+    "source_type": "cart",
+    "source_platform": "네이버 스토어",
+    "source_url": null,
+    "captured_at": "2026-09-30",
+    "vendor": "양말하우스",
+    "buyer": null,
+    "ship_to": "예시배송지 (서울특별시 OO구)",
+    "currency": "KRW",
+    "tax_included": true,
+    "note": "· 컬리N마트·지금배달 탭 1건 미포함"
+  },
+  "items": [
+    {
+      "name": "포켓몬 양말 캐릭터 아동양말 08번 크리스마스 양말선물 포켓몬스터 피카츄",
+      "option": "포켓몬08번양말 / 혼합5종 4호",
+      "qty": 1,
+      "unit_price": 8800,
+      "amount": 8800,
+      "vendor": null,
+      "url": null,
+      "note": null
+    }
+  ],
+  "summary": {
+    "subtotal": 8800,
+    "discount": 0,
+    "discount_note": null,
+    "shipping": 2500,
+    "vat": null,
+    "total": 11300
+  }
+}

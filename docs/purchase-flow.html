@@ -1,0 +1,2306 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>:root{color-scheme:light;box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+<title>구매 품의 흐름도</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: 발표 화면용 한 장. 얇은 제목 줄 아래에 흐름도가 화면에 맞춰 들어가고, 캡션 한 줄이 붙는다 */
+:root{
+  --bg:#F4F5F8; --surface:#FFFFFF; --ink:#1A2130; --ink-2:#465166; --ink-3:#77818F;
+  --line:#D5DAE3; --line-strong:#5A6578;
+  --infer:#2D58B5; --infer-bg:#E2EAFA;
+  --skill:#946511; --skill-bg:#FAEFD3;
+  --run:#2B774A; --run-bg:#DFF0E4;
+  --ref:#6747AD; --ref-bg:#EDE7F9;
+  --review:#BC364C; --review-bg:#FBE2E5;
+  --file:#4B586C; --file-bg:#E8ECF2;
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","D2Coding",Consolas,"Malgun Gothic",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11141A; --surface:#1A1F28; --ink:#E6E9EF; --ink-2:#B4BBC9; --ink-3:#8791A1;
+    --line:#303746; --line-strong:#8D97A9;
+    --infer:#8DAEF4; --infer-bg:#1B2946;
+    --skill:#E0B45A; --skill-bg:#30270F;
+    --run:#7AC998; --run-bg:#15301F;
+    --ref:#B59AEE; --ref-bg:#281F43;
+    --review:#EE8799; --review-bg:#3B1921;
+    --file:#A7B2C4; --file-bg:#222935;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11141A; --surface:#1A1F28; --ink:#E6E9EF; --ink-2:#B4BBC9; --ink-3:#8791A1;
+  --line:#303746; --line-strong:#8D97A9;
+  --infer:#8DAEF4; --infer-bg:#1B2946;
+  --skill:#E0B45A; --skill-bg:#30270F;
+  --run:#7AC998; --run-bg:#15301F;
+  --ref:#B59AEE; --ref-bg:#281F43;
+  --review:#EE8799; --review-bg:#3B1921;
+  --file:#A7B2C4; --file-bg:#222935;
+  color-scheme:dark;
+}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;display:flex;flex-direction:column}
+
+.bar{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 18px;padding-inline:clamp(16px,2.4vw,36px);padding-block:14px 10px}
+.bar h1{font-size:clamp(17px,1.5vw,22px);line-height:1.3;font-weight:700;margin:0;text-wrap:balance}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--ink-3);margin:0}
+.tools{margin-left:auto;align-self:center;display:flex;align-items:center;gap:10px}
+.pager{display:flex;align-items:center;gap:2px}
+.btn{font:500 13px var(--sans);color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--line-strong);color:var(--ink)}
+.btn:focus-visible{outline:2px solid var(--infer);outline-offset:2px}
+.btn:disabled{opacity:.4;cursor:default}
+.pager .btn{padding:3px 11px;font-size:16px;line-height:1.25}
+#pos{font:500 13px var(--mono);color:var(--ink-2);min-width:52px;text-align:center;font-variant-numeric:tabular-nums}
+
+.stage{flex:1;min-height:0;padding-inline:clamp(16px,2.4vw,36px);padding-block:0 clamp(12px,2vh,24px)}
+.page{height:100%}
+.fig{height:100%;margin:0;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.scroll{flex:1;min-height:400px;position:relative}
+.dg{position:absolute;left:16px;top:16px;width:calc(100% - 32px);height:calc(100% - 32px)}
+.fig figcaption{border-top:1px solid var(--line);padding:11px 20px 13px;color:var(--ink-2);font-size:14px}
+.fig figcaption p{max-width:120ch;margin:0}
+.fig figcaption.cap2{display:flex;align-items:center;flex-wrap:wrap;gap:10px 20px}
+.cap2 p{flex:1;min-width:min(100%,280px)}
+code{font-family:var(--mono);font-size:.9em;background:var(--file-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+
+/* 좁거나 낮은 화면: 화면 맞춤 대신 흐름도를 읽을 수 있는 크기로 두고 그림 안에서 가로 스크롤 */
+@media (max-width:960px),(max-height:540px){
+  html,body{height:auto}
+  .stage{flex:none}
+  .page,.fig{height:auto}
+  .scroll{flex:none;min-height:0;overflow-x:auto;padding:16px}
+  .dg{position:static;display:block;width:1240px;height:auto}
+}
+
+/* diagram */
+.dg text{font-family:var(--sans);font-size:12px;fill:var(--ink)}
+.dg .t{font-size:13px;font-weight:600}
+.dg .s{font-size:11.5px;fill:var(--ink-2)}
+.dg .x{font-size:10.5px;fill:var(--ink-2)}
+.dg .m{font-family:var(--mono);font-size:12px;font-weight:600}
+.dg .ms{font-family:var(--mono);font-size:10.5px;fill:var(--ink-2)}
+.dg .c{text-anchor:middle}
+.dg .e{text-anchor:end}
+.dg .b6{font-weight:600}
+.dg .k-infer{fill:var(--infer)}
+.dg .k-skill{fill:var(--skill)}
+.dg .k-run{fill:var(--run)}
+.dg .k-ref{fill:var(--ref)}
+.dg .k-review{fill:var(--review)}
+.dg .k-file{fill:var(--file)}
+.dg .box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+.dg .g-skill{fill:var(--skill-bg);stroke:var(--skill);stroke-width:1.5}
+.dg .g-run{fill:var(--run-bg);stroke:var(--run);stroke-width:1.5}
+.dg .g-ref{fill:var(--ref-bg);stroke:var(--ref);stroke-width:1.5}
+.dg .b-skill{fill:var(--surface);stroke:var(--skill);stroke-width:1.5}
+.dg .b-run{fill:var(--surface);stroke:var(--run);stroke-width:1.5}
+.dg .b-ref{fill:var(--surface);stroke:var(--ref);stroke-width:1.25}
+.dg .b-review{fill:var(--review-bg);stroke:var(--review);stroke-width:1.5}
+.dg .d-infer{fill:var(--infer-bg);stroke:var(--infer);stroke-width:1.75}
+.dg .c-infer{fill:var(--infer-bg);stroke:var(--infer);stroke-width:1.25}
+.dg .c-run{fill:var(--run-bg);stroke:var(--run);stroke-width:1.25}
+.dg .c-skill{fill:var(--skill-bg);stroke:var(--skill);stroke-width:1.25}
+.dg .f{fill:var(--file-bg);stroke:var(--file);stroke-width:1.5}
+.dg .p-fail{fill:var(--review-bg);stroke:var(--review);stroke-width:1.5}
+.dg .p-wait{fill:var(--skill-bg);stroke:var(--skill);stroke-width:1.5}
+.dg .p-ok{fill:var(--run-bg);stroke:var(--run);stroke-width:1.5}
+.dg .ln{fill:none;stroke:var(--line-strong);stroke-width:1.5}
+.dg .ln-skill{stroke:var(--skill)}
+.dg .ln-infer{stroke:var(--infer);stroke-width:2}
+.dg .ln-ref{stroke:var(--ref)}
+.dg .ln-review{stroke:var(--review);stroke-width:2}
+.dg .ln-file{stroke:var(--file)}
+.dg .ln-thin{stroke:var(--line);stroke-width:1}
+.dg .dash{stroke-dasharray:5 4}
+.dg .mk-ink{fill:var(--line-strong)}
+.dg .mk-skill{fill:var(--skill)}
+.dg .mk-infer{fill:var(--infer)}
+.dg .mk-ref{fill:var(--ref)}
+.dg .mk-review{fill:var(--review)}
+
+/* 2쪽 · 판독과 판단 */
+.dg .ink{fill:var(--ink)}
+.dg .t2{font-size:15px;font-weight:600}
+.dg .dt{font-size:21px;font-weight:700;letter-spacing:.35em}
+.dg .lb{font-size:11px;fill:var(--ink-3)}
+.dg .val{font-size:13px;font-weight:500}
+.dg .num{font-family:var(--mono);font-size:11px}
+.dg .rt{font-size:16px;font-weight:600}
+.dg .vt{font-size:16px;font-weight:700;fill:var(--surface)}
+.dg .vs{font-size:12px;font-weight:700;fill:var(--surface)}
+.dg .nt{font-size:12px;font-weight:700;fill:var(--surface);text-anchor:middle}
+.dg .n-ink{fill:var(--line-strong)}
+.dg .n-infer{fill:var(--infer)}
+.dg .g-infer{fill:var(--infer-bg);stroke:var(--infer);stroke-width:1.5}
+.dg .b-infer{fill:var(--surface);stroke:var(--infer);stroke-width:1.5}
+.dg .inner{fill:var(--surface);stroke:var(--line);stroke-width:1}
+.dg .v-infer{fill:var(--infer)}
+.dg .paper{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+.dg .band{fill:var(--file-bg)}
+.dg .hl{fill:var(--infer-bg);stroke:var(--infer);stroke-width:1}
+.dg .sel{fill:none;stroke:var(--infer);stroke-width:3}
+.dg .chk{fill:none;stroke:var(--infer);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.dg .stamp{fill:none;stroke:var(--review);stroke-width:1.25}
+.dg .scanline{fill:var(--infer)}
+.dg .sg0{stop-color:var(--infer);stop-opacity:0}
+.dg .sg1{stop-color:var(--infer);stop-opacity:.3}
+.dg .dot{fill:var(--infer)}
+
+/* 애니메이션: 기본 상태가 완성된 그림이고, .play 가 붙으면 순서대로 나타난다 */
+.anim .scan{opacity:0}
+.anim .dots circle{opacity:0}
+.anim .ev{opacity:.55}
+.anim.play .a-fade{animation:k-fade .5s ease-out calc(var(--d,0s) + .7s) backwards}
+.anim.play .a-up{animation:k-up .55s cubic-bezier(.2,.7,.2,1) calc(var(--d,0s) + .7s) backwards}
+.anim.play .a-right{animation:k-right .5s cubic-bezier(.2,.7,.2,1) calc(var(--d,0s) + .7s) backwards}
+.anim.play .a-pop{animation:k-pop .45s cubic-bezier(.3,1.4,.5,1) calc(var(--d,0s) + .7s) backwards;transform-box:fill-box;transform-origin:center}
+.anim.play .a-type{animation:k-type .6s steps(16,end) calc(var(--d,0s) + .7s) backwards}
+.anim.play .scan{animation:k-scan 3s linear calc(var(--d,0s) + .7s) both}
+.anim.play .dots circle{animation:k-blink .9s ease-in-out calc(var(--d,0s) + .7s) 4}
+.anim.play .ev{animation:k-dim 1.6s ease-out calc(var(--d,0s) + .7s) backwards}
+@keyframes k-fade{from{opacity:0}}
+@keyframes k-up{from{opacity:0;transform:translateY(12px)}}
+@keyframes k-right{from{opacity:0;transform:translateX(-14px)}}
+@keyframes k-pop{from{opacity:0;transform:scale(.9)}}
+@keyframes k-type{0%{opacity:0;clip-path:inset(-6px 100% -6px -2px)}2%{opacity:1;clip-path:inset(-6px 100% -6px -2px)}100%{opacity:1;clip-path:inset(-6px -2px -6px -2px)}}
+@keyframes k-scan{0%{opacity:0;transform:translateY(0)}6%{opacity:1}92%{opacity:1}100%{opacity:0;transform:translateY(352px)}}
+@keyframes k-blink{0%,100%{opacity:.15}50%{opacity:1}}
+@keyframes k-dim{0%{opacity:0;transform:translateY(12px)}25%{opacity:1;transform:none}70%{opacity:1}100%{opacity:.55}}
+
+/* 상세 보기 전환: 전체 흐름(#ov)은 왼쪽 아래 미니맵으로 줄고, 그 자리에 상세(#dt)가 나타난다 */
+#ov{transform-box:view-box;transform-origin:0 0;transition:transform .7s cubic-bezier(.4,0,.2,1)}
+.focus #ov{transform:translate(40px,548px) scale(.255)}
+#dt,#dt2{opacity:0;visibility:hidden;transition:opacity .25s ease,visibility 0s .25s}
+.v-input #dt,.v-author #dt2{opacity:1;visibility:visible;transition:opacity .4s ease .4s,visibility 0s}
+.dg .mm-bg{fill:var(--surface);stroke:var(--line-strong);stroke-width:5;opacity:0;transition:opacity .4s}
+.dg .mm-here{fill:var(--infer);fill-opacity:.14;stroke:var(--infer);stroke-width:8;opacity:0;pointer-events:none;transition:opacity .4s}
+.dg .mm-hit{fill:transparent;pointer-events:none}
+.focus .mm-bg{opacity:1}
+.v-input .h-input,.v-author .h-author{opacity:1;transition-delay:.5s}
+.focus .mm-hit{pointer-events:all;cursor:zoom-out}
+
+/* 누를 수 있는 상자 */
+.dg .hot{cursor:pointer;outline:none}
+.dg .hot .hot-box{transition:stroke .15s,stroke-width .15s}
+.dg .hot:hover .hot-box,.dg .hot:focus-visible .hot-box{stroke:var(--infer);stroke-width:2.5}
+.dg .hot-dot{fill:var(--infer);stroke:var(--surface);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:k-hint 1.6s ease-in-out .8s 3}
+.dg .hot-tri{fill:var(--surface);pointer-events:none}
+@keyframes k-hint{50%{transform:scale(1.3)}}
+
+/* '동작 줄이기' 설정으로 재생을 끄지 않는다. 원격 데스크톱 세션은 그 설정이 기본으로 켜져 있어서,
+   끄는 규칙을 두면 흐름 재생 · 상세 재생 · 채우기가 통째로 움직이지 않는다. 재생은 모두 눌러서 시작한다 */
+
+/* 상세 보기 2 · 구조화, 조립, 러너 호출 */
+.dg .y{font-family:var(--mono);font-size:11px}
+.dg .ph{fill:var(--ink-3)}
+.dg .r-infer{fill:var(--infer-bg)}
+.dg .n-skill{fill:var(--skill)}
+.dg .n-run{fill:var(--run)}
+.dg .v-skill{fill:var(--skill)}
+.dg .mk-run{fill:var(--run)}
+.dg .ln-run{stroke:var(--run)}
+
+/* 구조화 상자의 'YAML 구조' 버튼 */
+.dg .ybtn{cursor:pointer;outline:none}
+.dg .ybtn rect{fill:var(--surface);stroke:var(--file);stroke-width:1.25;transition:fill .15s}
+.dg .ybtn text{font-size:10.5px;font-weight:600;fill:var(--file);text-anchor:middle}
+.dg .ybtn:hover rect,.dg .ybtn:focus-visible rect{fill:var(--file-bg);stroke-width:2}
+
+/* 조립된 입력 YAML: 구역 줄도 누를 수 있고, 전체 보기는 넓은 화면에서 두 단으로 */
+.dg .yrow{cursor:pointer;outline:none}
+.dg .yrow:hover .inner,.dg .yrow:focus-visible .inner{stroke:var(--file);stroke-width:2}
+/* 그림 안 재생 2의 입력 YAML 카드: 'YAML 보기'(눈에 띄게 채운 버튼)와 구역 줄만 누를 수 있다 */
+.dg .scene.on .ybtn,.dg .scene.on .yrow{pointer-events:auto}
+.dg .ybtn.go rect{fill:var(--infer);stroke:var(--infer)}
+.dg .ybtn.go text{fill:var(--surface)}
+.dg .ybtn.go:hover rect,.dg .ybtn.go:focus-visible rect{fill:var(--infer);stroke:var(--ink);stroke-width:1.5}
+
+/* YAML 구조: 그림 안 오른쪽 칸 자리에만 뜨는 작은 창. 위치·크기·글자 크기는 스크립트가 그림 배율에 맞춘다 */
+.ypop{position:absolute;z-index:5;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;font-size:11px;background:var(--surface);border:.14em solid var(--file);border-radius:.8em}
+.ypop .yhead{display:flex;align-items:flex-start;gap:.6em;padding:.75em .8em .45em}
+.ypop .ytabs{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:.35em}
+.ypop .ytab{font:500 .95em var(--sans);color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:99em;padding:.25em .85em;cursor:pointer}
+.ypop .ytab:hover{border-color:var(--line-strong);color:var(--ink)}
+.ypop .ytab:focus-visible,.ypop .yx:focus-visible{outline:2px solid var(--infer);outline-offset:1px}
+.ypop .ytab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.ypop .yx{flex:none;width:1.5em;height:1.5em;padding:0;font:500 1.25em/1 var(--sans);color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:50%;cursor:pointer}
+.ypop .yx:hover{border-color:var(--line-strong);color:var(--ink)}
+.ypop .ypath{padding:0 1em .6em;font:500 .92em var(--mono);color:var(--ink-3)}
+.ypop .ybody{flex:1;min-height:0;overflow:auto;background:var(--file-bg);border-top:1px solid var(--line)}
+.ypop pre.yaml{margin:0;padding:.9em 1.1em 1.2em;font:500 1em/1.5 var(--mono);color:var(--ink);white-space:pre;tab-size:2}
+.ypop pre.yaml .yk{color:var(--infer)}
+.ypop pre.yaml .yc{color:var(--ink-3);font-weight:400}
+.ypop pre.yaml .yp{color:var(--skill)}
+
+/* 같은 곳 표시: 상세 보기 2의 '레시피 · 레지스트리' 재료 상자 = 미니맵의 보라색 두 묶음 */
+.dg .mm-same{fill:var(--ref);fill-opacity:.16;stroke:var(--ref);stroke-width:8;opacity:0;pointer-events:none}
+.v-author .mm-same{opacity:1}
+.dg .dot-ref{fill:var(--ref)}
+#same2{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .25s ease,visibility 0s .25s}
+.v-author #same2{opacity:1;visibility:visible;transition:opacity .4s ease .4s,visibility 0s}
+
+/* YAML 창의 '채우기': 빈 자리(.slot)에 값이 한 글자씩 들어가고, 출처 색으로 남는다 */
+.ypop .yfill{flex:none;font:600 .95em var(--sans);color:var(--surface);background:var(--infer);border:1px solid var(--infer);border-radius:99em;padding:.25em 1em;cursor:pointer}
+.ypop .yfill:hover:not(:disabled){filter:brightness(1.1)}
+.ypop .yfill:disabled{opacity:.65;cursor:default}
+.ypop .yfill:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.ypop .ypath{display:flex;justify-content:space-between;gap:1em}
+.ypop #ystate{font-family:var(--sans);color:var(--ink-2)}
+.ypop .slot{position:relative;border-radius:.25em}
+.ypop .slot.filling{background:var(--surface);box-shadow:0 0 0 .12em var(--infer)}
+.ypop .slot.filling::after{content:"";position:absolute;left:100%;top:.22em;width:.45em;height:1.05em;margin-left:.1em;background:var(--infer);animation:k-caret .7s steps(1) infinite}
+@keyframes k-caret{50%{opacity:0}}
+.ypop .slot.filled{font-weight:600}
+.ypop .slot.filled[data-src="q"],.ypop .yfoot .q{color:var(--infer);background:var(--infer-bg)}
+.ypop .slot.filled[data-src="u"],.ypop .slot.filled[data-src="a"],.ypop .yfoot .u{color:var(--skill);background:var(--skill-bg)}
+.ypop .slot.filled[data-src="r"],.ypop .yfoot .r{color:var(--ref);background:var(--ref-bg)}
+.ypop .slot.filled[data-src="c"],.ypop .slot.filled[data-src="n"],.ypop .yfoot .c{color:var(--run);background:var(--run-bg)}
+.ypop .slot.filled[data-src="f"],.ypop .yfoot .f{color:var(--ink);background:var(--surface)}
+.ypop .yfoot{display:flex;flex-wrap:wrap;gap:.3em .5em;padding:.5em .8em .6em;border-top:1px solid var(--line);font-size:.9em}
+.ypop .yfoot span{padding:.1em .55em;border-radius:.3em;font-weight:600}
+
+/* 채우는 값의 근거: 창 아래 한 줄에 가져온 곳을 적고, 왼쪽 재료 상자에 불을 켠다 */
+.ypop .ywhy{display:flex;align-items:baseline;gap:.7em;padding:.55em .9em;border-top:1px solid var(--line);background:var(--surface);min-height:1.6em}
+.ypop .ywhy b{flex:none;font-weight:700;color:var(--ink-2)}
+.ypop .ywhy span{min-width:0;color:var(--ink-3)}
+.ypop .ywhy.q span{color:var(--infer);font-weight:600}
+.ypop .ywhy.u span,.ypop .ywhy.a span{color:var(--skill);font-weight:600}
+.ypop .ywhy.r span{color:var(--ref);font-weight:600}
+.ypop .ywhy.c span,.ypop .ywhy.n span{color:var(--run);font-weight:600}
+.ypop .ywhy.f span{color:var(--ink);font-weight:600}
+.ypop .slot.filled{cursor:help}
+.dg .srcbox{transition:stroke-width .15s}
+.dg .srcbox.lit{stroke-width:5}
+
+/* 흐름 재생: 전체 흐름의 연결선을 따라 순서대로 한 번씩 흘러 들어간다 */
+.dg .pbtn{fill:var(--surface);stroke:var(--infer);stroke-width:1.5}
+.dg .n-review{fill:var(--review)}
+.dg .n-file{fill:var(--file)}
+.dg .fl{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:.22 1;stroke-dashoffset:.22;opacity:0;pointer-events:none}
+.dg .f-ink{stroke:var(--line-strong)}
+.dg .f-infer{stroke:var(--infer)}
+.dg .f-skill{stroke:var(--skill)}
+.dg .f-ref{stroke:var(--ref)}
+.dg .f-run{stroke:var(--run)}
+.dg .nd{opacity:0;pointer-events:none}
+.dg .fl.alt{stroke-opacity:.4}
+.dg .nd.alt{fill-opacity:.4}
+.flowing .fl{animation:k-flow var(--t,1s) cubic-bezier(.4,0,.6,1) var(--d,0s) both}
+.flowing .nd{animation:k-nd 1s ease-out var(--d,0s) both}
+@keyframes k-flow{0%{opacity:0;stroke-dashoffset:.22}8%{opacity:1}92%{opacity:1}100%{opacity:0;stroke-dashoffset:-1}}
+@keyframes k-nd{0%{opacity:0}35%{opacity:.3}100%{opacity:0}}
+
+/* 그림 안 재생(.scene): 전체 흐름 그림 위에서 한 단계의 과정을 보여 준다
+   (#ocrfx 견적서 이미지 · #yamlfx 입력 사전 작성 · #fixfx 중단했을 때 · #opsfx 레시피 · 레지스트리 업데이트 · #modelfx 모델별 성능).
+   묶음에 .on 이 붙어 있는 동안만 보이고, 다 재생된 모습으로 남는다.
+   .p-in · .p-pop · .p-type 은 끝까지 남는 표시, .hold · .pulse · .fl · .nd · .scan2 는 지나가는 표시 */
+.dg .f-review{stroke:var(--review)}
+.dg .f-file{stroke:var(--file)}
+.dg .n-ref{fill:var(--ref)}
+.dg .ring{fill:none;stroke-width:3}
+.dg .ring.thin{stroke-width:1.5}
+.dg .rowhl{fill:var(--review);fill-opacity:.14;stroke:var(--review);stroke-width:1.25}
+.dg .rowhl.i{fill:var(--infer);stroke:var(--infer)}
+.dg .rowhl.u{fill:var(--skill);stroke:var(--skill)}
+.dg .rowhl.r{fill:var(--ref);stroke:var(--ref)}
+.dg .rowhl.g{fill:var(--run);stroke:var(--run)}
+/* 그림 안 재생 2: 순서 표(.sd 동그라미 + .nt 숫자)와 입력 YAML 카드의 출처 표(.ct · 판독 = 파랑, 참조 = 보라) */
+.dg .sd{fill:var(--skill);stroke:var(--surface);stroke-width:2}
+.dg .ct{font-size:10px;font-weight:700;fill:var(--surface);text-anchor:middle}
+.dg .chk.ok{stroke:var(--run)}
+.dg .mini{font-size:8px;font-weight:700;letter-spacing:.25em}
+.dg .tl{fill:none;stroke:var(--ink-3);stroke-width:2;stroke-linecap:round}
+.dg .tl.b{stroke:var(--ink);stroke-width:2.5}
+/* 스킬 단계 표시: 1단계 = 라우터 스킬(LLM 라우터가 고른다), 2단계 = 실무 스킬(1단계 스킬이 고른다).
+   2단계 상자는 들여 쓰고, 단계 표(.lv)는 재생 표시보다 위에 그린다. 탈락한 실무 스킬은 표도 함께 흐려진다 */
+.dg .opt{font-family:var(--mono);font-size:10.5px;font-weight:500;fill:var(--ink-2)}
+.dg .lv text{font-size:10.5px;font-weight:700;fill:var(--skill);text-anchor:middle}
+.dg .lv.l1 text{fill:var(--surface)}
+.dg .lv{pointer-events:none;transition:opacity .2s}
+.dg #ocrfx.on ~ .lv.out{opacity:.35;transition:opacity .45s ease-out 11.8s}
+.dg #ocrfx.on.done ~ .lv.out{transition:none}
+.dg .cover{fill:var(--surface)}
+.dg .dim{fill:var(--surface);opacity:.62}
+.dg .hl.sk{fill:var(--skill-bg);stroke:var(--skill)}
+.dg .chk.sk{stroke:var(--skill)}
+.dg .hit{fill:transparent;stroke:transparent}
+.dg .scene{opacity:0;visibility:hidden;pointer-events:none}
+.dg .scene.on{opacity:1;visibility:visible}
+.dg .scene .hold,.dg .scene .pulse,.dg .scene .think circle,.dg .scene .scan2{opacity:0}
+.dg .scene.on .p-in{animation:k-fade .45s ease-out var(--d,0s) backwards}
+.dg .scene.on .p-pop{animation:k-pop .45s cubic-bezier(.3,1.4,.5,1) var(--d,0s) backwards;transform-box:fill-box;transform-origin:center}
+.dg .scene.on .p-type{animation:k-type .6s steps(16,end) var(--d,0s) backwards}
+.dg .scene.on .hold{animation:k-hold var(--t,1s) linear var(--d,0s) both}
+.dg .scene.on .pulse{animation:k-ring 1.6s ease-out var(--d,0s) both}
+.dg .scene.on .fl{animation:k-flow var(--t,1s) cubic-bezier(.4,0,.6,1) var(--d,0s) both}
+.dg .scene.on .nd{animation:k-nd 1s ease-out var(--d,0s) both}
+.dg .scene.on .think circle{animation:k-blink .9s ease-in-out var(--d,0s) 4}
+.dg .scene.on .scan2{animation:k-scan2 2.4s linear var(--d,0s) both}
+@keyframes k-hold{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+@keyframes k-ring{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+@keyframes k-scan2{0%{opacity:0;transform:translateY(0)}6%{opacity:1}92%{opacity:1}100%{opacity:0;transform:translateY(110px)}}
+
+/* 그림 안 재생 5 · 모델별 성능(#modelfx): LLM OCR 카드 자리에서 모델마다 표본 판독 → 정확도 막대 → 적합 · 부적합 순서로 나온다.
+   재생 묶음 안의 버튼(.hot)은 묶음이 켜져 있는 동안만 눌린다. .done 은 재생 없이 다 재생된 모습으로 바로 켠다 */
+.dg .scene.on .hot{pointer-events:auto}
+.dg .scene.on.done *{animation:none!important}
+.dg .track{fill:var(--surface);stroke:var(--line);stroke-width:1}
+.dg .tick{fill:none;stroke:var(--ink);stroke-width:1.5}
+.dg .tile{fill:var(--run-bg);stroke:var(--run);stroke-width:1}
+.dg .tile.bad{fill:var(--review);stroke:var(--review)}
+.dg .tile.w1{fill-opacity:.25}
+.dg .tile.w2{fill-opacity:.45}
+.dg .tile.w3{fill-opacity:.7}
+.dg .scene.on .p-grow{animation:k-grow .7s cubic-bezier(.3,.6,.3,1) var(--d,0s) backwards;transform-box:fill-box;transform-origin:0 50%}
+@keyframes k-grow{from{transform:scaleX(0)}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1 id="ttl">견적서 이미지에서 구매 품의 임시저장까지</h1>
+  <p class="eyebrow">krs-web-agents · ea · KRS eclass 전자결재</p>
+  <div class="tools">
+    <nav class="pager" aria-label="페이지 이동">
+      <button class="btn" id="prev" type="button" aria-label="이전 페이지">‹</button>
+      <span id="pos">1 / 2</span>
+      <button class="btn" id="next" type="button" aria-label="다음 페이지">›</button>
+    </nav>
+    <button class="btn" id="fs" type="button">전체 화면</button>
+  </div>
+</header>
+
+<main class="stage">
+  <section class="page" id="p1" data-title="견적서 이미지에서 구매 품의 임시저장까지" aria-label="1쪽 · 전체 흐름">
+  <figure class="fig">
+    <div class="scroll">
+      <svg id="flow" class="dg anim" viewBox="0 0 1490 800" role="img" aria-label="견적서 이미지가 LLM 라우터와 ea-router를 거쳐 구매요청서 또는 구매승인 품의 스킬로 위임되고, 이미지는 입력 YAML과 증빙 PDF 두 파일로 저장된 뒤 러너가 레지스트리를 해석해 임시저장까지 실행하고, 결과를 검토해 재시도하거나 사람이 상신하는 흐름">
+        <defs>
+          <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-ink" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-skill" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-skill" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-infer" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-infer" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-ref" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-ref" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-review" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path class="mk-review" d="M0 0L10 5L0 10z"/></marker>
+        </defs>
+
+        <defs>
+          <linearGradient id="scan-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="sg0"/><stop offset="1" class="sg1"/></linearGradient>
+          <marker id="a-run" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-run" d="M0 0L10 5L0 10z"/></marker>
+          <clipPath id="docclip"><path d="M70 156H366L390 180V506H70Z"/></clipPath>
+          <clipPath id="docclip2"><path d="M40 482H112L124 494V592H40Z"/></clipPath>
+        </defs>
+
+        <!-- ───── 상세 보기 (#dt): '견적서 이미지'를 누르면 나타난다 ───── -->
+        <g id="dt">
+          <!-- 단계 제목 -->
+          <g class="a-fade" style="--d:.1s">
+            <circle class="n-ink" cx="53" cy="44" r="12"/><text class="nt" x="53" y="48.5">1</text>
+            <text class="t2" x="74" y="49">입력</text>
+            <text class="s" x="112" y="49">견적서 이미지와 요청 문장</text>
+          </g>
+          <g class="a-fade" style="--d:1.3s">
+            <circle class="n-infer" cx="513" cy="44" r="12"/><text class="nt" x="513" y="48.5">2</text>
+            <text class="t2" x="534" y="49">판독</text>
+            <text class="s" x="572" y="49">LLM이 이미지의 글자를 읽는다 (OCR)</text>
+          </g>
+          <g class="a-fade" style="--d:5.4s">
+            <circle class="n-infer" cx="1023" cy="44" r="12"/><text class="nt" x="1023" y="48.5">3</text>
+            <text class="t2" x="1044" y="49">판단</text>
+            <text class="s" x="1082" y="49">무슨 자료인지 추론하고 스킬을 고른다</text>
+          </g>
+
+          <!-- 1 입력: 요청 -->
+          <g class="a-up" style="--d:.3s">
+            <rect class="box" x="40" y="78" width="380" height="60" rx="10"/>
+            <text class="lb" x="56" y="100">요청</text>
+            <text class="t" x="56" y="122">이 견적서로 구매 품의 올려줘</text>
+            <rect class="band" x="366" y="88" width="40" height="18" rx="9"/>
+            <text class="x c" x="386" y="101">예시</text>
+          </g>
+          <g class="a-right" style="--d:1.5s">
+            <path class="ln" d="M420 108H496" marker-end="url(#a-ink)"/>
+          </g>
+
+          <!-- 1 입력: 견적서 이미지 (설명용 예시) -->
+          <g class="a-up" style="--d:.7s">
+            <path class="paper" d="M70 156H366L390 180V506H70Z"/>
+            <path class="ln" d="M366 156V180H390"/>
+          </g>
+          <rect class="hl a-fade" style="--d:2.1s" x="166" y="177" width="128" height="30" rx="4"/>
+          <rect class="hl a-fade" style="--d:2.8s" x="84" y="262" width="176" height="22" rx="4"/>
+          <rect class="hl a-fade" style="--d:3.4s" x="84" y="323" width="292" height="42" rx="4"/>
+          <rect class="hl a-fade" style="--d:4.25s" x="136" y="433" width="240" height="26" rx="4"/>
+          <g class="a-up" style="--d:.7s">
+            <text class="dt c" x="234" y="199">견 적 서</text>
+            <path class="ln ln-thin" d="M90 216H370"/>
+            <text class="x" x="90" y="236">견적일 2026-09-28</text>
+            <text class="x" x="90" y="252">수신 ○○연구팀 귀중</text>
+            <text class="s ink b6" x="90" y="278">공급자 (주)예시상사</text>
+            <circle class="stamp" cx="352" cy="266" r="13"/>
+            <text class="x c k-review" x="352" y="270">인</text>
+            <rect class="band" x="84" y="294" width="292" height="22"/>
+            <text class="x b6" x="92" y="309">품명 · 규격</text>
+            <text class="x b6 e" x="304" y="309">수량</text>
+            <text class="x b6 e" x="368" y="309">금액</text>
+            <text class="s ink b6" x="92" y="341">워크스테이션 WS-900</text>
+            <text class="num e" x="304" y="341">1</text>
+            <text class="num e" x="368" y="341">4,180,000</text>
+            <text class="x" x="92" y="358">CPU 32코어 · RAM 128GB · GPU 24GB</text>
+            <path class="ln ln-thin" d="M84 372H376"/>
+            <text class="x" x="200" y="398">공급가액</text>
+            <text class="num e" x="368" y="398">4,180,000</text>
+            <text class="x" x="200" y="416">부가세</text>
+            <text class="num e" x="368" y="416">418,000</text>
+            <path class="ln ln-thin" d="M196 426H376"/>
+            <text class="s ink b6" x="144" y="451">합계 (VAT 포함)</text>
+            <text class="num e b6" x="368" y="451">4,598,000원</text>
+            <text class="x" x="90" y="486">유효기간 견적일로부터 30일</text>
+          </g>
+          <g clip-path="url(#docclip)">
+            <g class="scan" style="--d:1.8s">
+              <rect x="70" y="114" width="320" height="44" fill="url(#scan-g)"/>
+              <rect class="scanline" x="70" y="157" width="320" height="2"/>
+            </g>
+          </g>
+          <text class="x c a-fade" style="--d:.9s" x="230" y="526">견적서 이미지 (PNG · JPG · 캡처) · 설명용 예시</text>
+
+          <g class="a-right" style="--d:1.6s">
+            <path class="ln ln-infer" d="M392 330H496" marker-end="url(#a-infer)"/>
+            <text class="x c b6 k-infer" x="444" y="320">비전 판독</text>
+          </g>
+
+          <!-- 2 판독: LLM -->
+          <g class="a-fade" style="--d:1.3s">
+            <rect class="g-infer" x="500" y="78" width="430" height="562" rx="14"/>
+            <polygon class="b-infer" points="516,108 528,96 540,108 528,120"/>
+            <text class="t" x="552" y="105">LLM OCR</text>
+            <text class="x" x="552" y="121">(이미지에서 글자 추출)</text>
+            <rect class="inner" x="516" y="138" width="398" height="300" rx="8"/>
+            <text class="x b6" x="532" y="163">판독 결과</text>
+            <text class="ms e" x="898" y="163">이미지 → 글자</text>
+            <path class="ln ln-thin" d="M532 174H898"/>
+            <path class="ln ln-thin" d="M532 216H898"/>
+            <path class="ln ln-thin" d="M532 258H898"/>
+            <path class="ln ln-thin" d="M532 300H898"/>
+            <path class="ln ln-thin" d="M532 342H898"/>
+            <path class="ln ln-thin" d="M532 384H898"/>
+          </g>
+          <g class="dots">
+            <circle class="dot" style="--d:1.8s" cx="878" cy="108" r="4"/>
+            <circle class="dot" style="--d:1.95s" cx="892" cy="108" r="4"/>
+            <circle class="dot" style="--d:2.1s" cx="906" cy="108" r="4"/>
+          </g>
+          <text class="lb a-fade" style="--d:2.25s" x="532" y="201">표제</text>
+          <text class="val a-type" style="--d:2.25s" x="622" y="201">견적서</text>
+          <text class="lb a-fade" style="--d:2.9s" x="532" y="243">공급자</text>
+          <text class="val a-type" style="--d:2.9s" x="622" y="243">(주)예시상사</text>
+          <text class="lb a-fade" style="--d:3.45s" x="532" y="285">품목</text>
+          <text class="val a-type" style="--d:3.45s" x="622" y="285">워크스테이션 WS-900</text>
+          <text class="lb a-fade" style="--d:3.7s" x="532" y="327">사양</text>
+          <text class="val a-type" style="--d:3.7s" x="622" y="327">CPU 32코어 · RAM 128GB · GPU 24GB</text>
+          <text class="lb a-fade" style="--d:3.95s" x="532" y="369">수량 · 단가</text>
+          <text class="val a-type" style="--d:3.95s" x="622" y="369">1 · 4,180,000원</text>
+          <text class="lb a-fade" style="--d:4.4s" x="532" y="411">합계</text>
+          <text class="val a-type" style="--d:4.4s" x="622" y="411">4,598,000원 (VAT 포함)</text>
+          <g class="a-fade" style="--d:5s">
+            <text class="s ink b6" x="516" y="474">이 단계는 판정에 필요한 만큼만 읽는다</text>
+            <text class="s" x="516" y="494">품목과 금액이 있는지 정도를 확인한다.</text>
+            <text class="s" x="516" y="528">입력 YAML로 옮기는 정밀 판독은</text>
+            <text class="s" x="516" y="548">위임받은 실무 스킬이 맡는다.</text>
+            <text class="ms" x="516" y="616">근거 · ea-router SKILL.md 판정 절차 1</text>
+          </g>
+
+          <g class="a-right" style="--d:5.4s">
+            <path class="ln ln-infer" d="M932 208H1006" marker-end="url(#a-infer)"/>
+            <text class="x c b6 k-infer" x="969" y="198">추론</text>
+          </g>
+
+          <!-- 3 판단: 자료 분류 -->
+          <g class="a-up" style="--d:5.6s">
+            <rect class="b-infer" x="1010" y="78" width="440" height="250" rx="12"/>
+            <text class="t" x="1030" y="108">무슨 자료인가?</text>
+          </g>
+          <g class="a-up" style="--d:6.1s">
+            <circle class="c-infer" cx="1040" cy="136" r="8"/>
+            <path class="chk" d="M1036 136.5l3 3 5.5-6.5"/>
+            <text class="s ink" x="1058" y="140">자료 형태가 이미지(캡처)다</text>
+          </g>
+          <g class="a-up" style="--d:6.6s">
+            <circle class="c-infer" cx="1040" cy="164" r="8"/>
+            <path class="chk" d="M1036 164.5l3 3 5.5-6.5"/>
+            <text class="s ink" x="1058" y="168">표제가 견적서이고 품목 · 금액이 있다</text>
+          </g>
+          <g class="a-up" style="--d:7.1s">
+            <circle class="c-infer" cx="1040" cy="192" r="8"/>
+            <path class="chk" d="M1036 192.5l3 3 5.5-6.5"/>
+            <text class="s ink" x="1058" y="196">요청이 구매 품의 작성이다</text>
+          </g>
+          <g class="a-pop" style="--d:7.8s">
+            <rect class="v-infer" x="1026" y="212" width="408" height="48" rx="8"/>
+            <text class="vt c" x="1230" y="242">견적서 · 구매 계열</text>
+          </g>
+          <g class="a-fade" style="--d:8.4s">
+            <text class="x" x="1030" y="284">판정 근거를 한 줄로 보고한다</text>
+            <text class="ms ink" x="1030" y="304">예: "견적 이미지에 품목 · 금액 → 구매 계열로 진행"</text>
+          </g>
+
+          <!-- 3 판단: 스킬 선택 -->
+          <g class="a-fade" style="--d:9s">
+            <path class="ln ln-infer" d="M1040 328V366" marker-end="url(#a-infer)"/>
+            <text class="x" x="1126" y="353">각 스킬의 description과 대조한다</text>
+          </g>
+          <g class="a-up" style="--d:9.3s">
+            <rect class="b-skill" x="1010" y="374" width="440" height="100" rx="8"/>
+            <text class="m" x="1026" y="399">ea-router</text>
+            <text class="s" x="1026" y="419">KRS eclass 전자결재 요청과 제공 자료를 분류해</text>
+            <text class="s" x="1026" y="437">구매요청서 또는 연구업무추진품의 등</text>
+            <text class="s" x="1026" y="455">알맞은 공문 작성 기능으로 연결한다.</text>
+          </g>
+          <g class="a-pop" style="--d:10.6s">
+            <rect class="sel" x="1006" y="370" width="448" height="108" rx="11"/>
+            <rect class="v-infer" x="1376" y="384" width="58" height="22" rx="11"/>
+            <text class="vs c" x="1405" y="399.5">선택</text>
+          </g>
+          <g class="ev" style="--d:9.6s">
+            <path class="ln dash" d="M1450 236H1470V534H1454" marker-end="url(#a-ink)"/>
+            <text class="m" x="1026" y="517">ev-receipt</text>
+            <text class="x e" x="1434" y="517">영수증일 때</text>
+            <text class="s" x="1026" y="538">구매 영수증(사진·PDF)을 읽어 값을 추출하고</text>
+            <text class="s" x="1026" y="556">RND 과제별 원장에 구매날짜·시간 순으로 등재한다.</text>
+          </g>
+
+          <!-- 결과 -->
+          <g class="a-fade" style="--d:11.1s">
+            <path class="ln ln-skill" d="M1004 424H986V672" marker-end="url(#a-skill)"/>
+          </g>
+          <g class="a-up" style="--d:11.4s">
+            <rect class="p-wait" x="500" y="676" width="950" height="72" rx="12"/>
+            <text class="t k-skill" x="524" y="705">판단 결과</text>
+            <text class="rt" x="524" y="731">견적서(구매 계열)로 판단하고 ea-router 스킬로 넘긴다</text>
+            <text class="s e" x="1426" y="707">다음 단계</text>
+            <text class="s ink e" x="1426" y="731">구매요청서인지 구매승인 품의인지 가른다</text>
+          </g>
+
+          <!-- 미니맵 안내 (미니맵 자체는 줄어든 #ov) -->
+          <text class="x c" x="230" y="780">전체 흐름 · 누르면 돌아간다</text>
+        </g>
+
+        <!-- ───── 상세 보기 2 (#dt2): '입력 사전 작성'을 누르면 나타난다 ───── -->
+        <g id="dt2">
+          <!-- 단계 제목 -->
+          <g class="a-fade" style="--d:.1s">
+            <circle class="n-skill" cx="53" cy="44" r="12"/><text class="nt" x="53" y="48.5">1</text>
+            <text class="t2" x="74" y="49">스킬</text>
+            <text class="s" x="112" y="49">선택된 스킬이 재료를 읽고 받는다</text>
+          </g>
+          <g class="a-fade" style="--d:2.6s">
+            <circle class="n-skill" cx="483" cy="44" r="12"/><text class="nt" x="483" y="48.5">2</text>
+            <text class="t2" x="504" y="49">구조화</text>
+            <text class="s" x="558" y="49">다섯 구역을 공문 양식에 맞게 채운다</text>
+          </g>
+          <g class="a-fade" style="--d:10s">
+            <circle class="n-run" cx="1043" cy="44" r="12"/><text class="nt" x="1043" y="48.5">3</text>
+            <text class="t2" x="1064" y="49">조립 · 러너 호출</text>
+            <text class="s" x="1184" y="49">한 파일로 묶어 러너에 넘긴다</text>
+          </g>
+
+          <!-- 1 스킬: 확정된 스킬 -->
+          <g class="a-up" style="--d:.3s">
+            <rect class="b-skill" x="40" y="78" width="360" height="68" rx="8"/>
+            <text class="m" x="56" y="101">ea-research-form --purpose purchase</text>
+            <text class="s" x="56" y="120">구매승인 품의 · KR_EA_Research_Task</text>
+            <text class="x b6 k-skill" x="56" y="137">앞 단계에서 ea-router가 판정해 이 스킬을 골랐다</text>
+          </g>
+          <g class="a-pop" style="--d:.9s">
+            <rect class="v-skill" x="334" y="87" width="54" height="20" rx="10"/>
+            <text class="vs c" x="361" y="101.5">선택됨</text>
+          </g>
+
+          <!-- 1 스킬: 재료 세 가지 -->
+          <g class="a-up" style="--d:1.3s">
+            <rect id="srcbox-q" class="c-infer srcbox" x="40" y="160" width="360" height="102" rx="8"/>
+            <text class="t k-infer" x="56" y="184">견적 판독값</text>
+            <text class="ms" x="130" y="184">LLM OCR</text>
+            <rect class="v-infer" x="282" y="170" width="106" height="20" rx="10"/>
+            <text class="vs c" x="335" y="184.5">이전 판독값 사용</text>
+            <text class="s ink" x="56" y="208">워크스테이션 WS-900 · 수량 1</text>
+            <text class="s ink" x="56" y="226">CPU 32코어 · RAM 128GB · GPU 24GB</text>
+            <text class="s ink" x="56" y="244">합계 4,598,000원 (VAT 포함)</text>
+          </g>
+          <g class="a-up" style="--d:1.6s">
+            <rect id="srcbox-u" class="p-wait srcbox" x="40" y="276" width="360" height="102" rx="8"/>
+            <text class="t k-skill" x="56" y="300">사용자 확인</text>
+            <text class="x e" x="384" y="300">견적에 없는 값은 묻는다</text>
+            <text class="s ink" x="56" y="324">지출 과제</text>
+            <text class="s ink" x="56" y="342">용도 · 구매사유</text>
+            <text class="s ink" x="56" y="360">비교견적서 (총액 500만 원 이상일 때)</text>
+          </g>
+          <g class="a-up" style="--d:1.9s">
+            <rect id="srcbox-r" class="g-ref srcbox" x="40" y="392" width="360" height="102" rx="8"/>
+            <text class="t k-ref" x="56" y="416">레시피 · 레지스트리</text>
+            <text class="x e" x="384" y="416">양식과 키 후보</text>
+            <text class="ms ink" x="56" y="440">input.template.yaml · context.md</text>
+            <text class="ms ink" x="56" y="458">body_spec.yaml · attach_rules.yaml</text>
+            <text class="ms ink" x="56" y="476">ea_projects.yaml · ea_accounts.yaml</text>
+          </g>
+          <g class="a-right" style="--d:2.6s">
+            <path class="ln" d="M400 211H434V443H400"/>
+            <path class="ln" d="M400 327H466" marker-end="url(#a-ink)"/>
+          </g>
+
+          <!-- 2 구조화 ① 과제 -->
+          <g class="a-up" style="--d:2.9s">
+            <rect class="box" x="470" y="78" width="490" height="82" rx="8"/>
+            <text class="t" x="486" y="101">과제</text>
+            <text class="x" x="522" y="101">어느 과제 예산으로 사는가</text>
+            <g class="ybtn" data-y="project" tabindex="0" role="button" aria-label="과제 YAML 구조 보기"><rect x="872" y="87" width="76" height="22" rx="11"/><text x="910" y="102">YAML 구조</text></g>
+          </g>
+          <text class="y a-type" style="--d:3.15s" x="486" y="122">project: <tspan class="ph">&lt;과제 alias&gt;</tspan></text>
+          <text class="x e a-fade" style="--d:3.15s" x="944" y="122"><tspan class="k-skill">사용자 확인</tspan> · <tspan class="k-ref">ea_projects</tspan></text>
+          <text class="y a-type" style="--d:3.4s" x="486" y="138">job_id: {search_type: project_name, query: <tspan class="ph">&lt;과제명&gt;</tspan>}</text>
+          <text class="x e k-ref a-fade" style="--d:3.4s" x="944" y="138">ea_projects</text>
+
+          <!-- 2 구조화 ② 공문내용 -->
+          <g class="a-up" style="--d:3.8s">
+            <rect class="box" x="470" y="170" width="490" height="166" rx="8"/>
+            <text class="t" x="486" y="193">공문내용</text>
+            <text class="x" x="548" y="193">품의서 본체 · 본문</text>
+            <g class="ybtn" data-y="body" tabindex="0" role="button" aria-label="공문내용 YAML 구조 보기"><rect x="872" y="179" width="76" height="22" rx="11"/><text x="910" y="194">YAML 구조</text></g>
+          </g>
+          <rect class="r-infer a-fade" style="--d:5.05s" x="478" y="267" width="474" height="16" rx="3"/>
+          <rect class="r-infer a-fade" style="--d:5.3s" x="478" y="283" width="474" height="16" rx="3"/>
+          <text class="y a-type" style="--d:4.05s" x="486" y="214">fields: {title: 워크스테이션 구매 품의}</text>
+          <text class="x e k-skill a-fade" style="--d:4.05s" x="944" y="214">저작</text>
+          <text class="y a-type" style="--d:4.3s" x="486" y="230">body:</text>
+          <text class="y a-type" style="--d:4.55s" x="499" y="246">contents: |</text>
+          <text class="x e k-ref a-fade" style="--d:4.55s" x="944" y="246">body_spec 뼈대</text>
+          <text class="y a-type" style="--d:4.8s" x="512" y="262">가. 구매 내역</text>
+          <text class="y a-type" style="--d:5.05s" x="525" y="278">(1) 구매품 : 워크스테이션 WS-900</text>
+          <text class="x e b6 k-infer a-fade" style="--d:5.05s" x="944" y="278">견적 판독</text>
+          <text class="y a-type" style="--d:5.3s" x="538" y="294">- 구매금액 : 4,598,000원 (VAT 포함)</text>
+          <text class="x e b6 k-infer a-fade" style="--d:5.3s" x="944" y="294">견적 판독</text>
+          <text class="y a-type" style="--d:5.55s" x="538" y="310">- 용도 · 구매계정 · 구매사유 : <tspan class="ph">…</tspan></text>
+          <text class="x e a-fade" style="--d:5.55s" x="944" y="310"><tspan class="k-skill">사용자 확인</tspan> · <tspan class="k-ref">ea_accounts</tspan></text>
+          <text class="y a-type" style="--d:5.8s" x="499" y="326">attachment: ※ 첨부 1. 견적서 1부. 끝.</text>
+          <text class="x e a-fade" style="--d:5.8s" x="944" y="326">첨부 목록과 일치</text>
+
+          <!-- 2 구조화 ③ 문서설정 -->
+          <g class="a-up" style="--d:6.2s">
+            <rect class="box" x="470" y="346" width="490" height="72" rx="8"/>
+            <text class="t" x="486" y="369">문서설정</text>
+            <text class="x" x="548" y="369">프로파일 이름만 적는다</text>
+            <g class="ybtn" data-y="setting" tabindex="0" role="button" aria-label="문서설정 YAML 구조 보기"><rect x="872" y="355" width="76" height="22" rx="11"/><text x="910" y="370">YAML 구조</text></g>
+          </g>
+          <text class="y a-type" style="--d:6.45s" x="486" y="390">document_setting: 연구품의</text>
+          <text class="x e a-fade" style="--d:6.45s" x="944" y="390">양식 고정 · <tspan class="k-ref">ea_setting 프로파일</tspan></text>
+          <text class="x k-run a-fade" style="--d:6.8s" x="486" y="407">러너 → 프로파일에서 보존년한 · Doc No. · 수신처를 꺼낸다</text>
+
+          <!-- 2 구조화 ④ 위임전결 -->
+          <g class="a-up" style="--d:7.2s">
+            <rect class="box" x="470" y="428" width="490" height="104" rx="8"/>
+            <text class="t" x="486" y="451">위임전결</text>
+            <text class="x" x="548" y="451">기준값만 적고 결재선은 비운다</text>
+            <g class="ybtn" data-y="rules" tabindex="0" role="button" aria-label="위임전결 YAML 구조 보기"><rect x="872" y="437" width="76" height="22" rx="11"/><text x="910" y="452">YAML 구조</text></g>
+          </g>
+          <rect class="r-infer a-fade" style="--d:7.7s" x="478" y="477" width="474" height="16" rx="3"/>
+          <text class="y a-type" style="--d:7.45s" x="486" y="472">purpose: 구매</text>
+          <text class="x e a-fade" style="--d:7.45s" x="944" y="472">양식 고정 · <tspan class="k-ref">ea_rules 규정 키</tspan></text>
+          <text class="y a-type" style="--d:7.7s" x="486" y="488">amount: 4598000</text>
+          <text class="x e a-fade" style="--d:7.7s" x="944" y="488"><tspan class="k-infer b6">견적 판독</tspan> · 합계 (VAT 포함)</text>
+          <text class="y a-type" style="--d:7.95s" x="486" y="504">approval_line: ""</text>
+          <text class="x e k-run a-fade" style="--d:7.95s" x="944" y="504">비움 · 러너가 확정</text>
+          <text class="x k-run a-fade" style="--d:8.3s" x="486" y="521">러너 → ea_rules 구매 구간 → 결재선 (LLM은 판정하지 않는다)</text>
+
+          <!-- 2 구조화 ⑤ 첨부 -->
+          <g class="a-up" style="--d:8.7s">
+            <rect class="box" x="470" y="542" width="490" height="72" rx="8"/>
+            <text class="t" x="486" y="565">첨부</text>
+            <text class="x" x="522" y="565">이미지는 PDF로 바꿔 둔다</text>
+            <g class="ybtn" data-y="attach" tabindex="0" role="button" aria-label="첨부 YAML 구조 보기"><rect x="872" y="551" width="76" height="22" rx="11"/><text x="910" y="566">YAML 구조</text></g>
+          </g>
+          <text class="y a-type" style="--d:8.95s" x="486" y="586">attachments: {files: [{path: attachments/견적서.pdf}]}</text>
+          <text class="x e k-run a-fade" style="--d:8.95s" x="944" y="586">convert 결과</text>
+          <text class="x k-run a-fade" style="--d:9.3s" x="486" y="603">러너 → attach_rules: 견적서 필수 · PDF만 · 500만 원 이상이면 비교견적서</text>
+
+          <text class="s a-fade" style="--d:9.6s" x="470" y="638"><tspan class="ms">_spellcheck</tspan> 로 문장 검증 → self-check → validate 로 넘긴다</text>
+
+          <!-- 3 조립: 입력 YAML 한 파일 -->
+          <g class="a-up" style="--d:10s">
+            <path class="f" d="M1030 78H1426L1450 102V368H1030Z"/>
+            <path class="ln ln-file" d="M1426 78V102H1450"/>
+            <text class="t" x="1046" y="103">입력 YAML</text>
+            <text class="ms" x="1046" y="120">ea_inputs/purchase_input.yaml</text>
+            <text class="x e" x="1414" y="120">한 파일의 다섯 구역</text>
+            <g class="ybtn" data-y="all" tabindex="0" role="button" aria-label="조립된 입력 YAML 전체 보기"><rect x="1322" y="84" width="88" height="22" rx="11"/><text x="1366" y="99">YAML 구조</text></g>
+          </g>
+          <g class="a-fade" style="--d:10.4s"><path class="ln" d="M960 119C996 119 994 150 1028 150" marker-end="url(#a-ink)"/></g>
+          <g class="a-pop yrow" style="--d:10.4s" data-y="project" tabindex="0" role="button" aria-label="과제 YAML 구조 보기">
+            <rect class="inner" x="1046" y="130" width="388" height="40" rx="6"/>
+            <text class="s ink b6" x="1060" y="147">과제</text>
+            <text class="ms" x="1060" y="162">project · job_id</text>
+          </g>
+          <g class="a-fade" style="--d:10.7s"><path class="ln" d="M960 253C998 253 992 196 1028 196" marker-end="url(#a-ink)"/></g>
+          <g class="a-pop yrow" style="--d:10.7s" data-y="body" tabindex="0" role="button" aria-label="공문내용 YAML 구조 보기">
+            <rect class="inner" x="1046" y="176" width="388" height="40" rx="6"/>
+            <text class="s ink b6" x="1060" y="193">공문내용</text>
+            <text class="ms" x="1060" y="208">fields · body</text>
+          </g>
+          <g class="a-fade" style="--d:11s"><path class="ln" d="M960 382C1002 382 988 242 1028 242" marker-end="url(#a-ink)"/></g>
+          <g class="a-pop yrow" style="--d:11s" data-y="setting" tabindex="0" role="button" aria-label="문서설정 YAML 구조 보기">
+            <rect class="inner" x="1046" y="222" width="388" height="40" rx="6"/>
+            <text class="s ink b6" x="1060" y="239">문서설정</text>
+            <text class="ms" x="1060" y="254">document_setting</text>
+          </g>
+          <g class="a-fade" style="--d:11.3s"><path class="ln" d="M960 480C1006 480 984 288 1028 288" marker-end="url(#a-ink)"/></g>
+          <g class="a-pop yrow" style="--d:11.3s" data-y="rules" tabindex="0" role="button" aria-label="위임전결 YAML 구조 보기">
+            <rect class="inner" x="1046" y="268" width="388" height="40" rx="6"/>
+            <text class="s ink b6" x="1060" y="285">위임전결</text>
+            <text class="ms" x="1060" y="300">purpose · amount · approval_line</text>
+          </g>
+          <g class="a-fade" style="--d:11.6s"><path class="ln" d="M960 578C1010 578 980 334 1028 334" marker-end="url(#a-ink)"/></g>
+          <g class="a-pop yrow" style="--d:11.6s" data-y="attach" tabindex="0" role="button" aria-label="첨부 YAML 구조 보기">
+            <rect class="inner" x="1046" y="314" width="388" height="40" rx="6"/>
+            <text class="s ink b6" x="1060" y="331">첨부</text>
+            <text class="ms" x="1060" y="346">attachments.files</text>
+          </g>
+
+          <rect id="yzone" x="972" y="70" width="478" height="574" fill="none" pointer-events="none"/>
+          <!-- 3 러너 호출 -->
+          <g class="a-fade" style="--d:12.1s">
+            <path class="ln" d="M1240 368V392" marker-end="url(#a-ink)"/>
+            <text class="ms" x="1250" y="385">--input</text>
+          </g>
+          <g class="a-up" style="--d:12.3s">
+            <rect class="g-run" x="1030" y="394" width="420" height="246" rx="14"/>
+            <text class="t k-run" x="1046" y="418">러너 호출</text>
+            <text class="x" x="1112" y="418">독립 CLI · 입력 YAML만 읽는다</text>
+            <rect class="inner" x="1046" y="428" width="388" height="50" rx="6"/>
+          </g>
+          <text class="ms ink a-type" style="--d:12.7s" x="1058" y="448">python ea_approval/runners/ea_research_run.py</text>
+          <text class="ms ink a-type" style="--d:13.05s" x="1058" y="465">&lt;모드&gt; --input …/purchase_input.yaml --purpose purchase</text>
+          <g class="a-up" style="--d:13.6s">
+            <text class="ms k-run b6" x="1046" y="504">validate</text>
+            <text class="s" x="1124" y="504">브라우저 없이 계약 검증</text>
+          </g>
+          <g class="a-pop" style="--d:14s">
+            <rect class="p-ok" x="1368" y="490" width="66" height="20" rx="10"/>
+            <text class="x c b6 k-run" x="1401" y="504">exit 0</text>
+          </g>
+          <g class="a-up" style="--d:14.5s">
+            <text class="ms k-run b6" x="1046" y="538">run-dry</text>
+            <text class="s" x="1124" y="538">저장 직전에 중단 (점검)</text>
+          </g>
+          <g class="a-pop" style="--d:14.9s">
+            <rect class="p-ok" x="1368" y="524" width="66" height="20" rx="10"/>
+            <text class="x c b6 k-run" x="1401" y="538">dry</text>
+          </g>
+          <g class="a-up" style="--d:15.4s">
+            <text class="ms k-run b6" x="1046" y="572">run</text>
+            <text class="s" x="1124" y="572">폼에 넣고 임시저장</text>
+          </g>
+          <g class="a-pop" style="--d:15.8s">
+            <rect class="p-ok" x="1368" y="558" width="66" height="20" rx="10"/>
+            <text class="x c b6 k-run" x="1401" y="572">DOCID</text>
+          </g>
+          <g class="a-fade" style="--d:16.3s">
+            <path class="ln ln-thin" d="M1046 588H1434"/>
+            <text class="x" x="1046" y="606">결재선 · 문서설정은 validate가 레지스트리로 풀고 run이 폼에 넣는다</text>
+            <text class="x" x="1046" y="624"><tspan class="b6 k-review">금지</tspan> 상신 · 제출 · 회수 · 삭제</text>
+          </g>
+
+          <!-- 결과 -->
+          <g class="a-fade" style="--d:16.6s">
+            <path class="ln ln-run" d="M1240 640V672" marker-end="url(#a-run)"/>
+          </g>
+          <g class="a-up" style="--d:16.9s">
+            <rect class="p-ok" x="470" y="676" width="980" height="72" rx="12"/>
+            <text class="t k-run" x="494" y="705">결과</text>
+            <text class="rt" x="494" y="731">eclass 연구업무추진품의가 임시저장되고 DOCID가 나온다</text>
+            <text class="s e" x="1426" y="707">다음 단계</text>
+            <text class="s ink e" x="1426" y="731">사람이 결재선 · 첨부 · 문서설정을 확인하고 상신한다</text>
+          </g>
+
+          <text class="x c" x="230" y="780">전체 흐름 · 누르면 돌아간다</text>
+        </g>
+
+        <!-- ───── 전체 흐름 (#ov): 상세 보기에서는 왼쪽 아래 미니맵으로 줄어든다 ───── -->
+        <g id="ov">
+        <rect class="mm-bg" x="-24" y="-24" width="1538" height="848" rx="36"/>
+
+        <!-- group grounds -->
+        <rect class="g-skill" x="276" y="30" width="340" height="480" rx="14"/>
+        <rect class="g-run" x="952" y="110" width="302" height="400" rx="14"/>
+        <rect class="g-ref" x="276" y="560" width="340" height="182" rx="14"/>
+        <rect class="g-ref" x="700" y="560" width="554" height="182" rx="14"/>
+
+        <!-- input (누르면 그림 안 재생 1) -->
+        <g id="open-input" class="hot" tabindex="0" role="button" aria-label="견적서 이미지: LLM이 읽고 판단하는 과정을 이 그림 안에서 재생">
+          <rect class="box hot-box" x="36" y="30" width="152" height="62" rx="10"/>
+          <text class="t c" x="112" y="56">견적서 이미지</text>
+          <text class="s c" x="112" y="76">PNG · JPG · 캡처 + 요청</text>
+          <circle class="hot-dot" cx="188" cy="30" r="10"/>
+          <path class="hot-tri" d="M185 25.5L192.5 30L185 34.5Z"/>
+        </g>
+        <path class="ln" d="M112 92V114" marker-end="url(#a-ink)"/>
+
+        <!-- LLM router -->
+        <polygon class="d-infer" points="36,194 112,116 188,194 112,272"/>
+        <text class="t c" x="112" y="191">LLM 라우터</text>
+        <text class="s c" x="112" y="209">(추론 · 스킬 선택)</text>
+        <path class="ln ln-infer" d="M188 194H236V114H308" marker-end="url(#a-infer)"/>
+        <text class="t e k-infer" x="230" y="119">스킬 선택</text>
+        <text class="x e" x="230" y="135">description 대조</text>
+
+        <!-- off-ramp -->
+        <path class="ln dash" d="M112 272V302" marker-end="url(#a-ink)"/>
+        <rect class="box dash" x="36" y="304" width="152" height="58" rx="8"/>
+        <text class="m c" x="112" y="328">ev-receipt</text>
+        <text class="x c" x="112" y="347">영수증이면 원장 등재</text>
+
+        <!-- 흐름 재생 버튼 -->
+        <g id="flowbtn" class="hot" tabindex="0" role="button" aria-label="흐름 재생: 연결선을 따라 차례로 흘러 들어가는 모습 보기">
+          <rect class="pbtn hot-box" x="36" y="372" width="152" height="28" rx="14"/>
+          <circle class="hot-dot" cx="56" cy="386" r="9"/>
+          <path class="hot-tri" d="M53.5 382L60 386L53.5 390Z"/>
+          <text class="s ink b6" x="74" y="390">흐름 재생</text>
+        </g>
+
+        <!-- 중단 시 재생 버튼 -->
+        <g id="fixbtn" class="hot" tabindex="0" role="button" aria-label="중단 시 재생: 러너가 멈추면 Claude SDK가 보고를 확인하고 러너를 업데이트하는 모습 보기">
+          <rect class="pbtn hot-box" x="36" y="406" width="152" height="28" rx="14"/>
+          <circle class="hot-dot" cx="56" cy="420" r="9"/>
+          <path class="hot-tri" d="M53.5 416L60 420L53.5 424Z"/>
+          <text class="s ink b6" x="74" y="424">중단 시 재생</text>
+        </g>
+
+        <!-- skill group -->
+        <text class="t k-skill" x="294" y="54">스킬 · 판정과 저작</text>
+        <text class="x" x="294" y="71">SKILL.md 절차 + workflow.yaml 계약</text>
+
+        <rect class="b-skill" x="310" y="86" width="290" height="56" rx="8"/>
+        <text class="m c" x="455" y="109">ea-router</text>
+        <text class="s c" x="455" y="128">총무 발주용인가, 예산 집행 승인인가 판정</text>
+
+        <path class="ln ln-skill" d="M322 142V268H332" marker-end="url(#a-skill)"/>
+        <path class="ln ln-skill" d="M322 198H332" marker-end="url(#a-skill)"/>
+        <text class="x e k-skill" x="598" y="161">위임 · 애매하면 사용자에게 질문</text>
+
+        <rect class="b-skill" x="334" y="170" width="266" height="56" rx="8"/>
+        <text class="m c" x="467" y="193">ea-purchase-form</text>
+        <text class="s c" x="467" y="212">구매요청서 · KR_Purchase_Order</text>
+
+        <rect class="b-skill" x="334" y="240" width="266" height="56" rx="8"/>
+        <text class="m c" x="467" y="263">ea-research-form <tspan class="opt">--purpose purchase</tspan></text>
+        <text class="s c" x="467" y="282">구매승인 품의 · KR_EA_Research_Task</text>
+
+        <g id="open-author" class="hot" tabindex="0" role="button" aria-label="입력 사전 작성: 스킬 실행, 판독값과 참조값 조합, 입력 YAML 작성, 러너 호출까지 이 그림 안에서 재생">
+        <rect class="b-skill hot-box" x="334" y="318" width="266" height="172" rx="8"/>
+        <text class="t" x="350" y="342">입력 사전 작성 (저작)</text>
+        <text class="s" x="350" y="364"><tspan class="b6 k-infer">판독값</tspan><tspan x="412">품목 · 사양 · 수량 · 단가 · 총액</tspan></text>
+        <text class="s" x="350" y="386"><tspan class="b6 k-ref">참조값</tspan><tspan x="412">레시피 양식 · 레지스트리 키</tspan></text>
+        <text class="s" x="350" y="408"><tspan class="b6 k-skill">조합</tspan><tspan x="412">양식에 맞춰 입력 YAML 작성</tspan></text>
+        <text class="x" x="412" y="426">없는 값은 질문 · 추측하지 않음</text>
+        <text class="x" x="412" y="443"><tspan class="ms">_spellcheck</tspan> · self-check 점검</text>
+        <text class="s" x="350" y="470"><tspan class="b6 k-run">러너 호출</tspan><tspan class="ms" x="412">validate → run-dry → run</tspan></text>
+        <circle class="hot-dot" cx="600" cy="318" r="10"/>
+        <path class="hot-tri" d="M597 313.5L604.5 318L597 322.5Z"/>
+        </g>
+
+        <!-- skill -> runner -->
+        <path class="ln ln-skill" d="M600 198H966" marker-end="url(#a-skill)"/>
+        <path class="ln ln-skill" d="M600 268H966" marker-end="url(#a-skill)"/>
+        <text class="m c k-skill" x="784" y="230">workflow.yaml</text>
+        <text class="s c" x="784" y="247">모드 → 게이트 → CLI</text>
+
+        <!-- storage routing -->
+        <text class="t k-file" x="724" y="306">이미지 한 장 → 파일 두 개</text>
+
+        <path class="ln" d="M600 352H636"/>
+        <rect class="c-skill" x="636" y="340" width="64" height="24" rx="12"/>
+        <text class="x c b6 k-skill" x="668" y="356">조합</text>
+        <path class="ln" d="M700 352H722" marker-end="url(#a-ink)"/>
+
+        <path class="ln" d="M600 456H630"/>
+        <rect class="c-run" x="630" y="444" width="76" height="24" rx="12"/>
+        <text class="ms c k-run" x="668" y="460">convert</text>
+        <path class="ln" d="M706 456H722" marker-end="url(#a-ink)"/>
+        <text class="x c" x="668" y="484">이미지 → PDF</text>
+
+        <path class="f" d="M724 318H884L896 330V386H724Z"/>
+        <path class="ln ln-file" d="M884 318V330H896"/>
+        <text class="t" x="738" y="341">입력 YAML (구조화)</text>
+        <text class="ms" x="738" y="358">ea_inputs/…_input.yaml</text>
+        <text class="x" x="738" y="375">러너가 읽는 유일한 입력</text>
+
+        <path class="f" d="M724 422H884L896 434V490H724Z"/>
+        <path class="ln ln-file" d="M884 422V434H896"/>
+        <text class="t" x="738" y="445">증빙 PDF</text>
+        <text class="ms" x="738" y="462">ea_data/attachments/</text>
+        <text class="x" x="738" y="479">&lt;파일명&gt;.pdf · PDF만 허용</text>
+
+        <path class="ln dash" d="M760 386V420" marker-end="url(#a-ink)"/>
+        <text class="ms" x="770" y="408">attachments.files[].path</text>
+
+        <path class="ln" d="M896 352H966" marker-end="url(#a-ink)"/>
+        <text class="ms c" x="924" y="344">--input</text>
+        <path class="ln" d="M896 456H966" marker-end="url(#a-ink)"/>
+        <text class="x c" x="924" y="448">첨부</text>
+
+        <!-- runner group -->
+        <text class="t k-run" x="970" y="134">러너 · 실행기 (결정론)</text>
+        <text class="x" x="970" y="151">독립 CLI · 입력 YAML만 읽는다</text>
+
+        <rect class="b-run" x="968" y="170" width="270" height="56" rx="8"/>
+        <text class="m c" x="1103" y="193">ea_form_run.py</text>
+        <text class="ms c" x="1103" y="212">validate · run-dry · run</text>
+
+        <rect class="b-run" x="968" y="240" width="270" height="56" rx="8"/>
+        <text class="m c" x="1103" y="263">ea_research_run.py</text>
+        <text class="ms c" x="1103" y="282">validate · run-dry · run · list · status</text>
+
+        <rect class="b-run" x="968" y="318" width="270" height="172" rx="8"/>
+        <text class="t" x="984" y="342">실행 순서 (두 러너 공통)</text>
+        <text class="ms k-run" x="984" y="367">validate</text>
+        <text class="s" x="1050" y="367">브라우저 없이 계약 검증</text>
+        <text class="ms k-run" x="984" y="390">run-dry</text>
+        <text class="s" x="1050" y="390">저장 직전에 중단 (점검)</text>
+        <text class="ms k-run" x="984" y="413">run</text>
+        <text class="s" x="1050" y="413">주입 → 임시저장 + DOCID</text>
+        <path class="ln ln-thin" d="M984 428H1222"/>
+        <text class="x b6 k-review" x="984" y="449">금지</text>
+        <text class="s" x="1050" y="449">상신 · 제출 · 회수 · 삭제</text>
+        <text class="x" x="984" y="472">종점은 임시저장, 상신은 사람이 한다</text>
+
+        <!-- result -->
+        <path class="ln" d="M1254 208H1292" marker-end="url(#a-ink)"/>
+        <rect class="box" x="1294" y="170" width="180" height="76" rx="10"/>
+        <text class="t c" x="1384" y="196">결과</text>
+        <text class="ms c" x="1384" y="215">verdict · exit code</text>
+        <text class="ms c" x="1384" y="233">logs/&lt;러너&gt;/&lt;일시_키&gt;/</text>
+        <path class="ln" d="M1384 246V294" marker-end="url(#a-ink)"/>
+        <text class="x" x="1392" y="274">러너가 보고</text>
+
+        <!-- review -->
+        <rect class="b-review" x="1294" y="296" width="180" height="124" rx="10"/>
+        <text class="t c" x="1384" y="319">검토</text>
+        <text class="s c" x="1384" y="341">exit code 해석 → 다음 행동</text>
+        <text class="x c" x="1384" y="361">2 = 입력 · 레시피 · 레지스트리 수정</text>
+        <text class="x c" x="1384" y="380">3 = 사람 인증 · 4 = 채널 대기</text>
+        <text class="x c" x="1384" y="399">1 · 5 · 미등록 코드 = 중단</text>
+
+        <path class="ln ln-review" d="M1294 358H1274V780H16V194H34" marker-end="url(#a-review)"/>
+        <text class="s c b6 k-review" x="660" y="770">retry · 원인 계층 한 곳을 고친 뒤 다시 진입 (exit 2 · PURPOSE_MISMATCH)</text>
+
+        <path class="ln" d="M1310 420V558H1328" marker-end="url(#a-ink)"/>
+        <path class="ln" d="M1310 458H1328" marker-end="url(#a-ink)"/>
+        <path class="ln" d="M1310 508H1328" marker-end="url(#a-ink)"/>
+        <g id="open-fix" class="hot" tabindex="0" role="button" aria-label="fail → 중단 · 보고: 러너가 멈추면 Claude SDK가 보고를 확인하고 러너를 업데이트하는 모습 재생">
+        <rect class="p-fail hot-box" x="1330" y="440" width="144" height="36" rx="18"/>
+        <text class="s c b6 k-review" x="1402" y="462">fail → 중단 · 보고</text>
+        <circle class="hot-dot" cx="1466" cy="441" r="9"/>
+        <path class="hot-tri" d="M1463.5 437L1470 441L1463.5 445Z"/>
+        </g>
+        <rect class="p-wait" x="1330" y="490" width="144" height="36" rx="18"/>
+        <text class="s c b6 k-skill" x="1402" y="512">wait_user → 사람 인증</text>
+        <rect class="p-ok" x="1330" y="540" width="144" height="36" rx="18"/>
+        <text class="s c b6 k-run" x="1402" y="562">ok → 임시저장 완료</text>
+
+        <path class="ln" d="M1402 576V604" marker-end="url(#a-ink)"/>
+        <rect class="box" x="1294" y="606" width="180" height="84" rx="10"/>
+        <text class="t c" x="1384" y="631">사람이 확인하고 상신</text>
+        <text class="s c" x="1384" y="651">결재선 · 첨부 · 문서설정</text>
+        <text class="x c" x="1384" y="670">임시저장함에서 육안 확인</text>
+
+        <!-- references: recipe -->
+        <text class="t k-ref" x="294" y="584">레시피 · 내용 형식 (커밋)</text>
+        <text class="ms" x="294" y="601">ea_recipes/…/purposes/&lt;목적&gt;/</text>
+        <rect class="b-ref" x="288" y="612" width="316" height="118" rx="8"/>
+        <text class="ms" x="302" y="633">input.template.yaml</text>
+        <text class="x" x="440" y="633">입력 빈 양식 (완결형)</text>
+        <text class="ms" x="302" y="655">context.md</text>
+        <text class="x" x="440" y="655">견적 → 필드 매핑 · 점검</text>
+        <text class="ms" x="302" y="677">body_spec.yaml</text>
+        <text class="x" x="440" y="677">본문 뼈대 · 표 (품의)</text>
+        <text class="ms" x="302" y="699">fieldmap.yaml</text>
+        <text class="x" x="440" y="699">폼 칸 · 표 (구매요청서)</text>
+        <text class="ms" x="302" y="721">attach_rules.yaml</text>
+        <text class="x" x="440" y="721">견적서 필수 · PDF만</text>
+
+        <path class="ln ln-ref" d="M380 560V492" marker-end="url(#a-ref)"/>
+        <text class="x k-ref" x="388" y="540">읽고 따라 쓴다</text>
+
+        <!-- references: registries -->
+        <text class="t k-ref" x="718" y="584">레지스트리 · 조직 기준값 (비커밋)</text>
+        <text class="ms" x="718" y="601">ea_data/registries/</text>
+
+        <rect class="b-ref" x="716" y="612" width="164" height="118" rx="8"/>
+        <text class="t" x="728" y="634">위임전결</text>
+        <text class="ms" x="728" y="653">ea_rules.yaml</text>
+        <text class="ms" x="728" y="668">ea_approval_lines.yaml</text>
+        <text class="x" x="728" y="691">총액 → 구간 → 결재선</text>
+        <text class="x" x="728" y="714">키 <tspan class="ms k-ref" dx="4">amount · purpose</tspan></text>
+
+        <rect class="b-ref" x="895" y="612" width="164" height="118" rx="8"/>
+        <text class="t" x="907" y="634">문서설정</text>
+        <text class="ms" x="907" y="653">ea_setting.yaml</text>
+        <text class="x" x="907" y="691">보존년한 · Doc No. · 수신처</text>
+        <text class="x" x="907" y="714">키 <tspan class="ms k-ref" dx="4">document_setting</tspan></text>
+
+        <rect class="b-ref" x="1074" y="612" width="164" height="118" rx="8"/>
+        <text class="t" x="1086" y="634">과제 · 계정 · 전문</text>
+        <text class="ms" x="1086" y="653">ea_projects.yaml</text>
+        <text class="ms" x="1086" y="668">ea_accounts.yaml</text>
+        <text class="ms" x="1086" y="683">ea_overview.yaml</text>
+        <text class="x" x="1086" y="714">키 <tspan class="ms k-ref" dx="4">project</tspan></text>
+
+        <path class="ln ln-ref" d="M1103 560V492" marker-end="url(#a-ref)"/>
+        <text class="x k-ref" x="1111" y="531">rules.py 가 해석한다</text>
+        <text class="x k-ref" x="1111" y="547">LLM은 판정하지 않는다</text>
+
+        <path class="ln ln-ref dash" d="M700 650H660V535H560V492" marker-end="url(#a-ref)"/>
+        <text class="x k-ref" x="572" y="527">키 후보 조회</text>
+
+        <!-- 레시피 · 레지스트리 묶음 (누르면 그림 안 재생 4) -->
+        <g id="open-ops-a" class="hot" tabindex="0" role="button" aria-label="레시피: 운영 스킬이 웹에서 수집해 업데이트하는 과정을 이 그림 안에서 재생">
+          <rect class="hit hot-box" x="276" y="560" width="340" height="182" rx="14"/>
+          <circle class="hot-dot" cx="616" cy="560" r="10"/>
+          <path class="hot-tri" d="M613 555.5L620.5 560L613 564.5Z"/>
+        </g>
+        <g id="open-ops-b" class="hot" tabindex="0" role="button" aria-label="레지스트리: 운영 스킬이 웹에서 수집해 업데이트하는 과정을 이 그림 안에서 재생">
+          <rect class="hit hot-box" x="700" y="560" width="554" height="182" rx="14"/>
+          <circle class="hot-dot" cx="1254" cy="560" r="10"/>
+          <path class="hot-tri" d="M1251 555.5L1258.5 560L1251 564.5Z"/>
+        </g>
+
+        <!-- legend -->
+        <text class="t" x="36" y="456">범례</text>
+        <polygon class="d-infer" points="36,479 43,472 50,479 43,486"/>
+        <text class="x" x="60" y="483">추론 (LLM)</text>
+        <rect class="g-skill" x="36" y="494" width="14" height="14" rx="3"/>
+        <text class="x" x="60" y="505">스킬 · 저작</text>
+        <rect class="g-run" x="36" y="516" width="14" height="14" rx="3"/>
+        <text class="x" x="60" y="527">결정론 실행</text>
+        <rect class="f" x="36" y="538" width="14" height="14" rx="2"/>
+        <text class="x" x="60" y="549">파일 (저장 형식)</text>
+        <rect class="g-ref" x="36" y="560" width="14" height="14" rx="3"/>
+        <text class="x" x="60" y="571">참조 (레시피 · 레지스트리)</text>
+        <rect class="b-review" x="36" y="582" width="14" height="14" rx="3"/>
+        <text class="x" x="60" y="593">검토</text>
+
+        <!-- 흐름 재생: 연결선을 따라 한 번씩 흘러 들어가고, 받는 상자가 잠깐 물든다 (svg 에 .flowing 이 붙었을 때만 보인다).
+             .alt 는 구매요청서 쪽 갈래(구매 품의의 대안 경로)라 옅게 흐른다 -->
+        <g id="flowfx">
+          <path class="fl f-ink" pathLength="1" style="--d:0s;--t:.7s" d="M112 92V114"/>
+          <polygon class="nd n-infer" style="--d:.6s" points="36,194 112,116 188,194 112,272"/>
+          <path class="fl f-infer" pathLength="1" style="--d:.9s;--t:1.1s" d="M188 194H236V114H308"/>
+          <rect class="nd n-skill" style="--d:1.9s" x="310" y="86" width="290" height="56" rx="8"/>
+          <path class="fl f-skill alt" pathLength="1" style="--d:2.2s;--t:1s" d="M322 142V198H332"/>
+          <path class="fl f-skill" pathLength="1" style="--d:2.2s;--t:1s" d="M322 142V268H332"/>
+          <rect class="nd n-skill alt" style="--d:3.1s" x="334" y="170" width="266" height="56" rx="8"/>
+          <rect class="nd n-skill" style="--d:3.1s" x="334" y="240" width="266" height="56" rx="8"/>
+          <path class="fl f-ref" pathLength="1" style="--d:3.6s;--t:1.1s" d="M380 560V492"/>
+          <path class="fl f-ref" pathLength="1" style="--d:3.6s;--t:1.1s" d="M700 650H660V535H560V492"/>
+          <rect class="nd n-skill" style="--d:4.6s" x="334" y="318" width="266" height="172" rx="8"/>
+          <path class="fl f-skill" pathLength="1" style="--d:5s;--t:1s" d="M600 352H722"/>
+          <path class="fl f-run" pathLength="1" style="--d:5s;--t:1s" d="M600 456H722"/>
+          <path class="nd n-file" style="--d:5.9s" d="M724 318H884L896 330V386H724Z"/>
+          <path class="nd n-file" style="--d:5.9s" d="M724 422H884L896 434V490H724Z"/>
+          <path class="fl f-skill alt" pathLength="1" style="--d:6.3s;--t:1.3s" d="M600 198H966"/>
+          <path class="fl f-skill" pathLength="1" style="--d:6.3s;--t:1.3s" d="M600 268H966"/>
+          <path class="fl f-ink" pathLength="1" style="--d:6.3s;--t:1.3s" d="M896 352H966"/>
+          <path class="fl f-ink" pathLength="1" style="--d:6.3s;--t:1.3s" d="M896 456H966"/>
+          <path class="fl f-ref" pathLength="1" style="--d:6.3s;--t:1.3s" d="M1103 560V492"/>
+          <rect class="nd n-run alt" style="--d:7.5s" x="968" y="170" width="270" height="56" rx="8"/>
+          <rect class="nd n-run" style="--d:7.5s" x="968" y="240" width="270" height="56" rx="8"/>
+          <rect class="nd n-run" style="--d:7.5s" x="968" y="318" width="270" height="172" rx="8"/>
+          <path class="fl f-ink" pathLength="1" style="--d:7.9s;--t:.7s" d="M1254 208H1292"/>
+          <rect class="nd n-ink" style="--d:8.5s" x="1294" y="170" width="180" height="76" rx="10"/>
+          <path class="fl f-ink" pathLength="1" style="--d:8.6s;--t:.7s" d="M1384 246V294"/>
+          <rect class="nd n-review" style="--d:9.2s" x="1294" y="296" width="180" height="124" rx="10"/>
+          <path class="fl f-ink" pathLength="1" style="--d:9.4s;--t:1s" d="M1310 420V558H1328"/>
+          <rect class="nd n-run" style="--d:10.3s" x="1330" y="540" width="144" height="36" rx="18"/>
+          <path class="fl f-ink" pathLength="1" style="--d:10.4s;--t:.6s" d="M1402 576V604"/>
+          <rect class="nd n-ink" style="--d:10.9s" x="1294" y="606" width="180" height="84" rx="10"/>
+        </g>
+
+        <!-- 그림 안 재생 1 · 견적서 이미지: LLM 이 이미지를 읽고(LLM OCR) 무슨 자료인지 판단해 스킬을 고른다.
+             판독 카드는 재생하는 동안 범례 자리에 뜬다. 견적서와 값은 설명용 예시 -->
+        <g id="ocrfx" class="scene">
+          <!-- 1 입력: 견적서 이미지 → LLM 라우터 -->
+          <rect class="nd n-ink" style="--d:0s" x="36" y="30" width="152" height="62" rx="10"/>
+          <path class="fl f-ink" pathLength="1" style="--d:.3s;--t:.6s" d="M112 92V114"/>
+          <polygon class="nd n-infer" style="--d:.8s" points="36,194 112,116 188,194 112,272"/>
+
+          <!-- 2 판독: LLM OCR 카드 -->
+          <path class="fl f-infer" pathLength="1" style="--d:1s;--t:.8s" d="M160 223H204V442"/>
+          <g class="p-in" style="--d:1.5s">
+            <path class="ln ln-infer" d="M160 223H204V442" marker-end="url(#a-infer)"/>
+            <text class="x b6 k-infer" x="210" y="330">판독</text>
+          </g>
+          <g class="p-pop" style="--d:1.6s">
+            <rect class="b-infer" x="28" y="444" width="236" height="326" rx="12"/>
+            <polygon class="c-infer" points="42,462 50,454 58,462 50,470"/>
+            <text class="t k-infer" x="66" y="466.5">LLM OCR</text>
+            <text class="x" x="128" y="466.5">이미지에서 글자를 읽는다</text>
+          </g>
+          <g class="p-in" style="--d:2s">
+            <path class="paper" d="M40 482H112L124 494V592H40Z"/>
+            <path class="ln" d="M112 482V494H124"/>
+            <text class="x b6 ink" x="136" y="494">견적서 이미지</text>
+            <text class="x" x="136" y="509">PNG · JPG · 캡처</text>
+            <text class="lb" x="136" y="536">요청</text>
+            <text class="x ink" x="136" y="551">이 견적서로</text>
+            <text class="x ink" x="136" y="565">구매 품의 올려줘</text>
+            <rect class="band" x="136" y="576" width="70" height="16" rx="8"/>
+            <text class="x c" x="171" y="587.5">설명용 예시</text>
+            <text class="x b6" x="42" y="618">판독 결과</text>
+            <path class="ln ln-thin" d="M40 625H252"/>
+            <text class="lb" x="42" y="642">표제</text>
+            <text class="lb" x="42" y="660">공급자</text>
+            <text class="lb" x="42" y="678">품목</text>
+            <text class="lb" x="42" y="696">합계</text>
+          </g>
+          <rect class="hl p-in" style="--d:2.8s" x="56" y="490" width="50" height="13" rx="2"/>
+          <rect class="hl p-in" style="--d:3.2s" x="45" y="508" width="52" height="9" rx="2"/>
+          <rect class="hl p-in" style="--d:3.6s" x="45" y="529" width="74" height="16" rx="2"/>
+          <rect class="hl p-in" style="--d:4.3s" x="58" y="570" width="61" height="12" rx="2"/>
+          <g class="p-in" style="--d:2s">
+            <text class="mini c" x="82" y="500">견 적 서</text>
+            <path class="tl" d="M48 512.5H94"/>
+            <rect class="band" x="46" y="520" width="72" height="6"/>
+            <path class="tl" d="M48 534H104"/>
+            <path class="tl" d="M48 540H86"/>
+            <path class="ln ln-thin" d="M46 550H118"/>
+            <path class="tl" d="M84 557H116"/>
+            <path class="tl" d="M90 563H116"/>
+            <path class="tl b" d="M62 576H116"/>
+          </g>
+          <g clip-path="url(#docclip2)">
+            <g class="scan2" style="--d:2.5s">
+              <rect x="40" y="462" width="84" height="20" fill="url(#scan-g)"/>
+              <rect class="scanline" x="40" y="481" width="84" height="1.5"/>
+            </g>
+          </g>
+          <text class="s ink p-type" style="--d:3s" x="86" y="642">견적서</text>
+          <text class="s ink p-type" style="--d:3.3s" x="86" y="660">(주)예시상사</text>
+          <text class="s ink p-type" style="--d:3.7s" x="86" y="678">워크스테이션 WS-900</text>
+          <text class="s ink b6 p-type" style="--d:4.5s" x="86" y="696">4,598,000원 (VAT 포함)</text>
+
+          <!-- 모델별 성능 버튼: 누르면 이 카드 자리에서 모델마다 읽기 성능과 적합 여부가 재생된다 (#modelfx) -->
+          <g class="p-in" style="--d:4.9s">
+            <g id="open-model" class="hot" tabindex="0" role="button" aria-label="모델별 성능: 모델마다 읽기 성능과 적합 여부를 이 카드 자리에서 재생">
+              <rect class="pbtn hot-box" x="158" y="603" width="94" height="18" rx="9"/>
+              <circle class="hot-dot" cx="169.5" cy="612" r="6"/>
+              <path class="hot-tri" d="M167.6 609L172.6 612L167.6 615Z"/>
+              <text class="x ink b6" x="180" y="615.8">모델별 성능</text>
+            </g>
+          </g>
+          <rect class="ring thin f-infer pulse" style="--d:14.8s" x="155" y="600" width="100" height="24" rx="12"/>
+
+          <!-- 3 판단: 무슨 자료인가 → 스킬 선택 -->
+          <text class="x b6 p-in" style="--d:5.2s" x="42" y="718">무슨 자료인가?</text>
+          <g class="p-pop" style="--d:5.6s">
+            <rect class="v-infer" x="40" y="726" width="212" height="34" rx="8"/>
+            <text class="vt c" x="146" y="748.5">견적서 · 구매 계열</text>
+          </g>
+          <polygon class="nd n-infer" style="--d:6.2s" points="36,194 112,116 188,194 112,272"/>
+
+          <!-- 4 스킬 선택은 두 번이고, 표시는 스킬 묶음의 단계에 붙인다 (따로 카드를 띄우지 않는다).
+               1차 = LLM 라우터가 스킬 후보의 description 과 대조해 1단계 스킬 ea-router 를 고른다. 묶음 밖의 다른 후보 둘은 같은 줄 오른쪽에 적는다.
+               2차 = ea-router(스킬)가 계열을 판정해 2단계 스킬을 고른다. 후보는 묶음 안의 두 상자이고, 이유는 각 상자에서 나가는 선 위에 적는다.
+               후보 설명은 각 스킬 SKILL.md 의 description, 2차 기준은 ea-router SKILL.md 판정 절차 2 -->
+          <g class="p-in" style="--d:6.5s">
+            <circle class="n-infer" cx="638" cy="70" r="7.5"/><text class="nt" x="638" y="74.2">1</text>
+            <text class="s b6 k-infer" x="651" y="74">LLM 라우터가 고른다</text>
+            <text class="x e" x="944" y="74">description 대조 · 다른 후보 둘</text>
+          </g>
+          <rect class="nd n-skill" style="--d:6.6s" x="310" y="86" width="290" height="56" rx="8"/>
+          <g class="p-pop" style="--d:6.9s">
+            <path class="ln dash" d="M602 114H628"/>
+            <rect class="inner" x="630" y="92" width="314" height="44" rx="8"/>
+          </g>
+          <g class="p-in" style="--d:7.2s">
+            <text class="ms" x="642" y="108">ev-receipt</text>
+            <text class="x" x="722" y="108">영수증 원장 등재</text>
+          </g>
+          <g class="p-in" style="--d:7.5s">
+            <text class="ms" x="642" y="127">rp-rerp</text>
+            <text class="x" x="722" y="127">rERP 카드청구</text>
+          </g>
+          <text class="x e ph p-in" style="--d:8s" x="934" y="108">영수증 아님</text>
+          <rect class="dim p-in" style="--d:8s" x="33" y="301" width="158" height="64" rx="9"/>
+          <text class="x e ph p-in" style="--d:8.5s" x="934" y="127">카드청구 아님</text>
+          <path class="fl f-infer" pathLength="1" style="--d:9s;--t:1.1s" d="M188 194H236V114H308"/>
+          <rect class="nd n-skill" style="--d:10s" x="310" y="86" width="290" height="56" rx="8"/>
+          <g class="p-pop" style="--d:10.2s">
+            <rect class="ring f-infer" x="306" y="82" width="298" height="64" rx="11"/>
+            <rect class="v-infer" x="532" y="76" width="64" height="20" rx="10"/>
+            <text class="vs c" x="564" y="90.5">1차 선택</text>
+          </g>
+
+          <g class="p-in" style="--d:10.8s">
+            <circle class="n-skill" cx="638" cy="158" r="7.5"/><text class="nt" x="638" y="162.2">2</text>
+            <text class="s b6 k-skill" x="651" y="162">ea-router가 고른다</text>
+            <text class="x e" x="944" y="162">계열 판정</text>
+          </g>
+          <rect class="nd n-skill" style="--d:11.2s" x="334" y="170" width="266" height="56" rx="8"/>
+          <rect class="nd n-skill" style="--d:11.2s" x="334" y="240" width="266" height="56" rx="8"/>
+          <text class="x ph p-in" style="--d:11.8s" x="626" y="190">발주용 아님</text>
+          <rect class="dim p-in" style="--d:11.8s" x="333" y="169" width="268" height="58" rx="9"/>
+          <g class="p-pop" style="--d:12.3s">
+            <circle class="p-wait" cx="632" cy="256" r="6"/>
+            <path class="chk sk" d="M628.8 256.4l2.4 2.4 4.4-5.2"/>
+            <text class="x b6 k-skill" x="643" y="260">요청이 품의</text>
+          </g>
+          <path class="fl f-skill" pathLength="1" style="--d:12.4s;--t:1s" d="M322 142V268H332"/>
+          <rect class="nd n-skill" style="--d:13.3s" x="334" y="240" width="266" height="56" rx="8"/>
+          <g class="p-pop" style="--d:13.5s">
+            <rect class="ring f-skill" x="330" y="236" width="274" height="64" rx="11"/>
+            <rect class="n-skill" x="532" y="230" width="64" height="20" rx="10"/>
+            <text class="vs c" x="564" y="244.5">2차 선택</text>
+          </g>
+        </g>
+
+        <!-- 그림 안 재생 5 · 모델별 성능: LLM OCR 카드의 '모델별 성능'을 누르면 같은 자리에서 재생된다.
+             모델 한 줄마다 표본 여섯 칸(다 맞으면 초록, 틀린 칸이 있으면 붉게) → 정확도 막대 → 시간 · 비용 → 적합 · 부적합 순서.
+             표본은 카드 영수증(또렷 · 작고 흐림 · 더 작고 더 흐림) · 숙박 영수증 PDF · 왕복 항공권 · 기차표, 2회 합계 182칸.
+             막대 너비 = 160 × 맞은 칸 / 182, 기준선 x=196 은 정확도 95% -->
+        <g id="modelfx" class="scene">
+          <polygon class="nd n-infer" style="--d:0s" points="36,194 112,116 188,194 112,272"/>
+          <path class="ln ln-infer" d="M160 223H204V442" marker-end="url(#a-infer)"/>
+          <text class="x b6 k-infer" x="210" y="330">판독</text>
+          <g class="p-pop" style="--d:0s">
+            <rect class="b-infer" x="28" y="444" width="236" height="326" rx="12"/>
+            <polygon class="c-infer" points="42,462 50,454 58,462 50,470"/>
+            <text class="t k-infer" x="66" y="466.5">LLM OCR</text>
+            <text class="x" x="128" y="466.5">모델별 성능</text>
+          </g>
+          <g class="p-in" style="--d:.3s">
+            <g id="back-ocr" class="hot" tabindex="0" role="button" aria-label="판독 보기: 견적서를 읽는 모습으로 돌아가기">
+              <rect class="pbtn hot-box" x="192" y="455" width="60" height="18" rx="9"/>
+              <text class="x ink b6 c" x="222" y="467.8">판독 보기</text>
+            </g>
+            <text class="x" x="42" y="486">표본 6종 · 182칸 채점 (2회 합계)</text>
+            <text class="lb" x="42" y="746">표본</text>
+            <rect class="tile" x="68" y="737.5" width="9" height="9" rx="2"/>
+            <text class="x" x="82" y="746">다 맞음</text>
+            <rect class="tile bad w3" x="126" y="737.5" width="9" height="9" rx="2"/>
+            <text class="x" x="140" y="746">틀림 · 진할수록 많이</text>
+            <text class="lb" x="42" y="762">기준</text>
+            <path class="tick" d="M72.5 752V765"/>
+            <text class="x" x="82" y="762">정확도 95% 이상이면 적합</text>
+          </g>
+
+          <!-- Haiku 4.5 (지금 설정) · 148/182 · 부적합 -->
+          <g class="p-pop" style="--d:.7s"><rect class="inner" x="36" y="496" width="220" height="54" rx="6"/></g>
+          <rect class="p-fail p-in" style="--d:2.8s" x="36" y="496" width="220" height="54" rx="6"/>
+          <g class="p-in" style="--d:.8s">
+            <text class="t" x="44" y="513">Haiku 4.5</text>
+            <rect class="band" x="106" y="502" width="52" height="15" rx="7.5"/>
+            <text class="x c" x="132" y="513">지금 설정</text>
+            <rect class="track" x="44" y="524" width="160" height="8" rx="4"/>
+          </g>
+          <rect class="tile bad w2 p-pop" style="--d:1.05s" x="44" y="536" width="9" height="9" rx="2"/>
+          <rect class="tile bad w3 p-pop" style="--d:1.17s" x="56" y="536" width="9" height="9" rx="2"/>
+          <rect class="tile bad p-pop" style="--d:1.29s" x="68" y="536" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:1.41s" x="80" y="536" width="9" height="9" rx="2"/>
+          <rect class="tile bad w2 p-pop" style="--d:1.53s" x="92" y="536" width="9" height="9" rx="2"/>
+          <rect class="tile bad w1 p-pop" style="--d:1.65s" x="104" y="536" width="9" height="9" rx="2"/>
+          <rect class="n-infer p-grow" style="--d:1.85s" x="44" y="524" width="130.1" height="8" rx="4"/>
+          <rect class="n-review p-in" style="--d:2.8s" x="44" y="524" width="130.1" height="8" rx="4"/>
+          <path class="tick p-in" style="--d:.8s" d="M196 521V535"/>
+          <text class="m e p-in" style="--d:2.4s" x="248" y="532">81%</text>
+          <text class="x e p-in" style="--d:2.5s" x="248" y="545">14.7초 · $0.017</text>
+          <g class="p-pop" style="--d:2.8s">
+            <rect class="n-review" x="194" y="502" width="54" height="18" rx="9"/>
+            <text class="vs c" x="221" y="515.5">부적합</text>
+          </g>
+          <rect class="ring f-review pulse" style="--d:2.8s" x="33" y="493" width="226" height="60" rx="9"/>
+
+          <!-- Sonnet 5.5 · 178/182 · 적합 -->
+          <g class="p-pop" style="--d:3.3s"><rect class="inner" x="36" y="556" width="220" height="54" rx="6"/></g>
+          <rect class="p-ok p-in" style="--d:5.4s" x="36" y="556" width="220" height="54" rx="6"/>
+          <g class="p-in" style="--d:3.4s">
+            <text class="t" x="44" y="573">Sonnet 5.5</text>
+            <rect class="track" x="44" y="584" width="160" height="8" rx="4"/>
+          </g>
+          <rect class="tile p-pop" style="--d:3.65s" x="44" y="596" width="9" height="9" rx="2"/>
+          <rect class="tile bad w1 p-pop" style="--d:3.77s" x="56" y="596" width="9" height="9" rx="2"/>
+          <rect class="tile bad w1 p-pop" style="--d:3.89s" x="68" y="596" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:4.01s" x="80" y="596" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:4.13s" x="92" y="596" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:4.25s" x="104" y="596" width="9" height="9" rx="2"/>
+          <rect class="n-infer p-grow" style="--d:4.45s" x="44" y="584" width="156.5" height="8" rx="4"/>
+          <rect class="n-run p-in" style="--d:5.4s" x="44" y="584" width="156.5" height="8" rx="4"/>
+          <path class="tick p-in" style="--d:3.4s" d="M196 581V595"/>
+          <text class="m e p-in" style="--d:5s" x="248" y="592">98%</text>
+          <text class="x e p-in" style="--d:5.1s" x="248" y="605">5.6초 · $0.028</text>
+          <g class="p-pop" style="--d:5.4s">
+            <rect class="n-run" x="194" y="562" width="54" height="18" rx="9"/>
+            <text class="vs c" x="221" y="575.5">적합</text>
+          </g>
+          <rect class="ring f-run pulse" style="--d:5.4s" x="33" y="553" width="226" height="60" rx="9"/>
+
+          <!-- Opus 5.5 · 182/182 · 적합 -->
+          <g class="p-pop" style="--d:5.9s"><rect class="inner" x="36" y="616" width="220" height="54" rx="6"/></g>
+          <rect class="p-ok p-in" style="--d:8s" x="36" y="616" width="220" height="54" rx="6"/>
+          <g class="p-in" style="--d:6s">
+            <text class="t" x="44" y="633">Opus 5.5</text>
+            <rect class="track" x="44" y="644" width="160" height="8" rx="4"/>
+          </g>
+          <rect class="tile p-pop" style="--d:6.25s" x="44" y="656" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:6.37s" x="56" y="656" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:6.49s" x="68" y="656" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:6.61s" x="80" y="656" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:6.73s" x="92" y="656" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:6.85s" x="104" y="656" width="9" height="9" rx="2"/>
+          <rect class="n-infer p-grow" style="--d:7.05s" x="44" y="644" width="160" height="8" rx="4"/>
+          <rect class="n-run p-in" style="--d:8s" x="44" y="644" width="160" height="8" rx="4"/>
+          <path class="tick p-in" style="--d:6s" d="M196 641V655"/>
+          <text class="m e p-in" style="--d:7.6s" x="248" y="652">100%</text>
+          <text class="x e p-in" style="--d:7.7s" x="248" y="665">6.2초 · $0.056</text>
+          <g class="p-pop" style="--d:8s">
+            <rect class="n-run" x="194" y="622" width="54" height="18" rx="9"/>
+            <text class="vs c" x="221" y="635.5">적합</text>
+          </g>
+          <rect class="ring f-run pulse" style="--d:8s" x="33" y="613" width="226" height="60" rx="9"/>
+
+          <!-- Fable 5.1 · 182/182 · 적합 -->
+          <g class="p-pop" style="--d:8.5s"><rect class="inner" x="36" y="676" width="220" height="54" rx="6"/></g>
+          <rect class="p-ok p-in" style="--d:10.6s" x="36" y="676" width="220" height="54" rx="6"/>
+          <g class="p-in" style="--d:8.6s">
+            <text class="t" x="44" y="693">Fable 5.1</text>
+            <rect class="track" x="44" y="704" width="160" height="8" rx="4"/>
+          </g>
+          <rect class="tile p-pop" style="--d:8.85s" x="44" y="716" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:8.97s" x="56" y="716" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:9.09s" x="68" y="716" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:9.21s" x="80" y="716" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:9.33s" x="92" y="716" width="9" height="9" rx="2"/>
+          <rect class="tile p-pop" style="--d:9.45s" x="104" y="716" width="9" height="9" rx="2"/>
+          <rect class="n-infer p-grow" style="--d:9.65s" x="44" y="704" width="160" height="8" rx="4"/>
+          <rect class="n-run p-in" style="--d:10.6s" x="44" y="704" width="160" height="8" rx="4"/>
+          <path class="tick p-in" style="--d:8.6s" d="M196 701V715"/>
+          <text class="m e p-in" style="--d:10.2s" x="248" y="712">100%</text>
+          <text class="x e p-in" style="--d:10.3s" x="248" y="725">6.8초 · $0.139</text>
+          <g class="p-pop" style="--d:10.6s">
+            <rect class="n-run" x="194" y="682" width="54" height="18" rx="9"/>
+            <text class="vs c" x="221" y="695.5">적합</text>
+          </g>
+          <rect class="ring f-run pulse" style="--d:10.6s" x="33" y="673" width="226" height="60" rx="9"/>
+        </g>
+
+        <!-- 그림 안 재생 2 · 입력 사전 작성: ① 스킬이 선택되고 ② 실행되면, LLM OCR 이 읽어 둔 판독값(구조화)과
+             이미 있는 참조값(레시피 양식 · 레지스트리 키)을 받아 ③ 조합해서 입력 YAML 을 만들고 ④ 러너를 호출한다.
+             판독값 카드는 재생하는 동안 범례 자리에, 입력 YAML 카드는 위쪽 빈 자리에 뜬다. 값은 설명용 예시 -->
+        <g id="yamlfx" class="scene">
+          <!-- 1 스킬 선택: ea-router 가 고른 실무 스킬 -->
+          <rect class="nd n-skill" style="--d:0s" x="334" y="240" width="266" height="56" rx="8"/>
+          <g class="p-pop" style="--d:.3s">
+            <rect class="n-skill" x="536" y="230" width="60" height="20" rx="10"/>
+            <text class="vs c" x="571" y="244.5">선택됨</text>
+            <circle class="sd" cx="538" cy="240" r="8.5"/><text class="nt" x="538" y="244.2">1</text>
+          </g>
+
+          <!-- 2 스킬 실행: 선택된 스킬이 입력 사전 작성을 시작한다 -->
+          <path class="fl f-skill" pathLength="1" style="--d:.9s;--t:.5s" d="M467 296V316"/>
+          <g class="p-in" style="--d:1.2s"><path class="ln ln-skill" d="M467 296V316" marker-end="url(#a-skill)"/></g>
+          <rect class="nd n-skill" style="--d:1.3s" x="334" y="318" width="266" height="172" rx="8"/>
+          <g class="p-pop" style="--d:1.5s">
+            <rect class="n-skill" x="512" y="308" width="72" height="20" rx="10"/>
+            <text class="vs c" x="553" y="322.5">스킬 실행</text>
+            <circle class="sd" cx="514" cy="318" r="8.5"/><text class="nt" x="514" y="322.2">2</text>
+          </g>
+
+          <!-- 재료 ① 판독값(구조화): LLM OCR 이 견적서에서 읽어 둔 값이 스킬로 들어온다 -->
+          <polygon class="nd n-infer" style="--d:2s" points="36,194 112,116 188,194 112,272"/>
+          <path class="fl f-infer" pathLength="1" style="--d:2.1s;--t:.8s" d="M160 223H204V442"/>
+          <g class="p-in" style="--d:2.6s">
+            <path class="ln ln-infer" d="M160 223H204V442" marker-end="url(#a-infer)"/>
+            <text class="x b6 k-infer" x="210" y="330">판독</text>
+          </g>
+          <g class="p-pop" style="--d:2.7s">
+            <rect class="b-infer" x="28" y="444" width="236" height="160" rx="12"/>
+            <polygon class="c-infer" points="42,462 50,454 58,462 50,470"/>
+            <text class="t k-infer" x="66" y="466.5">판독값 (구조화)</text>
+            <text class="ms e" x="252" y="466.5">LLM OCR</text>
+            <path class="ln ln-thin" d="M40 478H252"/>
+          </g>
+          <g class="p-in" style="--d:3s">
+            <text class="lb" x="42" y="497">품목</text>
+            <text class="lb" x="42" y="516">사양</text>
+            <text class="lb" x="42" y="535">수량</text>
+            <text class="lb" x="42" y="554">단가</text>
+            <text class="lb" x="42" y="573">총액</text>
+            <text class="x e ph" x="252" y="594">설명용 예시</text>
+          </g>
+          <text class="s ink p-type" style="--d:3.1s" x="80" y="497">워크스테이션 WS-900</text>
+          <text class="s ink p-type" style="--d:3.3s" x="80" y="516">32코어 · 128GB · GPU 24GB</text>
+          <text class="s ink p-type" style="--d:3.5s" x="80" y="535">1</text>
+          <text class="s ink p-type" style="--d:3.7s" x="80" y="554">4,180,000원</text>
+          <text class="s ink b6 p-type" style="--d:3.9s" x="80" y="573">4,598,000원 (VAT 포함)</text>
+          <path class="fl f-infer" pathLength="1" style="--d:4.4s;--t:.9s" d="M264 497H304V361H332"/>
+          <g class="p-in" style="--d:4.9s"><path class="ln ln-infer" d="M264 497H304V361H332" marker-end="url(#a-infer)"/></g>
+          <rect class="rowhl i hold" style="--d:5.1s;--t:3.3s" x="342" y="351" width="250" height="20" rx="4"/>
+
+          <!-- 재료 ② 참조값(기존): 레시피 양식과 레지스트리 키. 이미 있는 값을 읽어 온다 -->
+          <rect class="nd n-ref" style="--d:5.6s" x="288" y="612" width="316" height="118" rx="8"/>
+          <rect class="nd n-ref" style="--d:5.6s" x="1074" y="612" width="164" height="118" rx="8"/>
+          <g class="p-pop" style="--d:5.8s">
+            <rect class="n-ref" x="520" y="572" width="84" height="20" rx="10"/>
+            <text class="vs c" x="562" y="586.5">기존 참조값</text>
+          </g>
+          <g class="p-pop" style="--d:5.8s">
+            <rect class="n-ref" x="1154" y="572" width="84" height="20" rx="10"/>
+            <text class="vs c" x="1196" y="586.5">기존 참조값</text>
+          </g>
+          <path class="fl f-ref" pathLength="1" style="--d:6s;--t:1s" d="M380 560V492"/>
+          <path class="fl f-ref" pathLength="1" style="--d:6s;--t:1s" d="M700 650H660V535H560V492"/>
+          <rect class="rowhl r hold" style="--d:6.8s;--t:2.4s" x="342" y="373" width="250" height="20" rx="4"/>
+
+          <!-- 3 조합: 두 값을 양식에 맞춰 입력 YAML 로 쓴다. 구역마다 어느 값이 들어갔는지(판독 · 참조) 표시한다 -->
+          <rect class="rowhl u hold" style="--d:7.6s;--t:5s" x="342" y="395" width="250" height="55" rx="4"/>
+          <path class="fl f-skill" pathLength="1" style="--d:7.8s;--t:.9s" d="M600 352H722"/>
+          <rect class="ring thin f-skill pulse" style="--d:8s" x="633" y="337" width="70" height="30" rx="15"/>
+          <g class="p-pop" style="--d:8s"><circle class="sd" cx="640" cy="340" r="8.5"/><text class="nt" x="640" y="344.2">3</text></g>
+          <path class="nd n-file" style="--d:8.6s" d="M724 318H884L896 330V386H724Z"/>
+          <path class="ln ln-file dash p-in" style="--d:8.8s" d="M708 186V330H724"/>
+          <g class="p-pop" style="--d:8.9s">
+            <path class="f" d="M630 14H928L940 26V186H630Z"/>
+            <path class="ln ln-file" d="M928 14V26H940"/>
+            <text class="t" x="644" y="35">입력 YAML</text>
+            <text class="x" x="712" y="35"><tspan class="b6 k-infer">판독값</tspan> + <tspan class="b6 k-ref">참조값</tspan> 조합</text>
+            <g class="ybtn go" data-y="all" tabindex="0" role="button" aria-label="작성된 입력 YAML 전체 보기"><rect x="842" y="20" width="82" height="21" rx="10.5"/><text x="883" y="34.5">YAML 보기</text></g>
+          </g>
+          <!-- 'YAML 보기'와 구역 줄을 누르면 작성된 YAML 이 #yzone2(카드 오른쪽 칸) 자리에 뜬다 -->
+          <rect id="yzone2" x="952" y="14" width="522" height="586" fill="none" pointer-events="none"/>
+          <g class="p-pop yrow" style="--d:9.3s" data-y="project" tabindex="0" role="button" aria-label="과제 YAML 보기">
+            <rect class="inner" x="640" y="44" width="290" height="24" rx="5"/>
+            <text class="s ink b6" x="650" y="60">과제</text>
+          </g>
+          <text class="ms p-type" style="--d:9.5s" x="712" y="60">project · job_id</text>
+          <g class="p-pop" style="--d:9.65s"><rect class="n-ref" x="890" y="48" width="34" height="16" rx="8"/><text class="ct" x="907" y="59.6">참조</text></g>
+          <g class="p-pop yrow" style="--d:9.8s" data-y="body" tabindex="0" role="button" aria-label="공문내용 YAML 보기">
+            <rect class="inner" x="640" y="72" width="290" height="24" rx="5"/>
+            <text class="s ink b6" x="650" y="88">공문내용</text>
+          </g>
+          <text class="ms p-type" style="--d:10s" x="712" y="88">fields · body</text>
+          <g class="p-pop" style="--d:10.15s"><rect class="n-infer" x="852" y="76" width="34" height="16" rx="8"/><text class="ct" x="869" y="87.6">판독</text></g>
+          <g class="p-pop" style="--d:10.25s"><rect class="n-ref" x="890" y="76" width="34" height="16" rx="8"/><text class="ct" x="907" y="87.6">참조</text></g>
+          <g class="p-pop yrow" style="--d:10.3s" data-y="setting" tabindex="0" role="button" aria-label="문서설정 YAML 보기">
+            <rect class="inner" x="640" y="100" width="290" height="24" rx="5"/>
+            <text class="s ink b6" x="650" y="116">문서설정</text>
+          </g>
+          <text class="ms p-type" style="--d:10.5s" x="712" y="116">document_setting</text>
+          <g class="p-pop" style="--d:10.65s"><rect class="n-ref" x="890" y="104" width="34" height="16" rx="8"/><text class="ct" x="907" y="115.6">참조</text></g>
+          <g class="p-pop yrow" style="--d:10.8s" data-y="rules" tabindex="0" role="button" aria-label="위임전결 YAML 보기">
+            <rect class="inner" x="640" y="128" width="290" height="24" rx="5"/>
+            <text class="s ink b6" x="650" y="144">위임전결</text>
+          </g>
+          <text class="ms p-type" style="--d:11s" x="712" y="144">purpose · amount</text>
+          <g class="p-pop" style="--d:11.15s"><rect class="n-infer" x="852" y="132" width="34" height="16" rx="8"/><text class="ct" x="869" y="143.6">판독</text></g>
+          <g class="p-pop" style="--d:11.25s"><rect class="n-ref" x="890" y="132" width="34" height="16" rx="8"/><text class="ct" x="907" y="143.6">참조</text></g>
+          <g class="p-pop yrow" style="--d:11.3s" data-y="attach" tabindex="0" role="button" aria-label="첨부 YAML 보기">
+            <rect class="inner" x="640" y="156" width="290" height="24" rx="5"/>
+            <text class="s ink b6" x="650" y="172">첨부</text>
+          </g>
+          <text class="ms p-type" style="--d:11.5s" x="712" y="172">attachments.files</text>
+          <text class="x e k-run p-in" style="--d:11.65s" x="922" y="172">이미지 → PDF</text>
+
+          <!-- 증빙 PDF: 원본 이미지는 PDF 로 바꿔 두고 입력 YAML 의 첨부에 적는다 -->
+          <path class="fl f-run" pathLength="1" style="--d:11.4s;--t:.9s" d="M600 456H722"/>
+          <path class="fl f-ink" pathLength="1" style="--d:11.9s;--t:.5s" d="M760 386V420"/>
+          <path class="nd n-file" style="--d:12.2s" d="M724 422H884L896 434V490H724Z"/>
+          <path class="ring f-file pulse" style="--d:12.4s" d="M627 11H929L943 25V189H627Z"/>
+          <path class="ring f-file pulse" style="--d:12.4s" d="M721 315H885L899 329V389H721Z"/>
+
+          <!-- 4 러너 호출: 스킬이 workflow.yaml 의 모드대로 러너를 부른다. validate → run-dry → run → ok -->
+          <rect class="rowhl g hold" style="--d:13s;--t:3.5s" x="342" y="457" width="250" height="20" rx="4"/>
+          <path class="fl f-skill" pathLength="1" style="--d:13.2s;--t:1.1s" d="M600 268H966"/>
+          <g class="p-pop" style="--d:13.5s">
+            <rect class="n-skill" x="850" y="258" width="90" height="20" rx="10"/>
+            <text class="vs c" x="901" y="272.5">러너 호출</text>
+            <circle class="sd" cx="852" cy="268" r="8.5"/><text class="nt" x="852" y="272.2">4</text>
+          </g>
+          <path class="fl f-ink" pathLength="1" style="--d:13.6s;--t:1s" d="M896 352H966"/>
+          <path class="fl f-ink" pathLength="1" style="--d:13.6s;--t:1s" d="M896 456H966"/>
+          <rect class="nd n-run" style="--d:14.3s" x="968" y="240" width="270" height="56" rx="8"/>
+          <rect class="nd n-run" style="--d:14.3s" x="968" y="318" width="270" height="172" rx="8"/>
+          <g class="p-pop" style="--d:14.7s">
+            <circle class="c-run" cx="1222" cy="363" r="8"/>
+            <path class="chk ok" d="M1218 363.5l3 3 5.5-6.5"/>
+          </g>
+          <path class="fl f-ref" pathLength="1" style="--d:14.7s;--t:1s" d="M1103 560V492"/>
+          <rect class="ring thin f-run pulse" style="--d:15.4s" x="637" y="125" width="296" height="30" rx="7"/>
+          <g class="p-pop" style="--d:15.5s">
+            <circle class="c-run" cx="1222" cy="386" r="8"/>
+            <path class="chk ok" d="M1218 386.5l3 3 5.5-6.5"/>
+          </g>
+          <g class="p-pop" style="--d:16.1s">
+            <circle class="c-run" cx="1222" cy="409" r="8"/>
+            <path class="chk ok" d="M1218 409.5l3 3 5.5-6.5"/>
+          </g>
+          <path class="fl f-run" pathLength="1" style="--d:16.5s;--t:.7s" d="M1254 208H1292"/>
+          <rect class="nd n-run" style="--d:17s" x="1294" y="170" width="180" height="76" rx="10"/>
+          <g class="p-pop" style="--d:17.2s">
+            <rect class="n-run" x="1392" y="160" width="78" height="20" rx="10"/>
+            <text class="vs c" x="1431" y="174.5">exit 0 · ok</text>
+          </g>
+          <path class="fl f-run" pathLength="1" style="--d:17.4s;--t:.7s" d="M1384 246V294"/>
+          <rect class="nd n-run" style="--d:17.9s" x="1294" y="296" width="180" height="124" rx="10"/>
+          <path class="fl f-run" pathLength="1" style="--d:18.1s;--t:.9s" d="M1310 420V558H1328"/>
+          <rect class="ring f-run p-in" style="--d:18.9s" x="1326" y="536" width="152" height="44" rx="22"/>
+          <path class="fl f-ink" pathLength="1" style="--d:19s;--t:.6s" d="M1402 576V604"/>
+          <rect class="nd n-ink" style="--d:19.5s" x="1294" y="606" width="180" height="84" rx="10"/>
+        </g>
+
+        <!-- 그림 안 재생 4 · 레시피 · 레지스트리 업데이트: 업무 스킬과 별개인 운영 스킬이 웹에서 수집해 두 묶음을 고친다.
+             웹 창과 운영 스킬 상자는 재생하는 동안 범례 자리에 뜬다. 수집 항목 다섯 줄은 두 묶음의 내용에서 옮긴 것 -->
+        <g id="opsfx" class="scene">
+          <rect class="nd n-ref" style="--d:0s" x="276" y="560" width="340" height="182" rx="14"/>
+          <rect class="nd n-ref" style="--d:0s" x="700" y="560" width="554" height="182" rx="14"/>
+
+          <!-- 1 웹: 수집할 화면 -->
+          <rect class="cover p-in" style="--d:.4s" x="24" y="440" width="240" height="334"/>
+          <g class="p-pop" style="--d:.5s">
+            <rect class="box" x="28" y="444" width="208" height="148" rx="8"/>
+            <path class="band" d="M29 466V452a7 7 0 0 1 7-7H228a7 7 0 0 1 7 7V466Z"/>
+            <circle class="n-ink" cx="42" cy="455.5" r="3"/>
+            <circle class="n-ink" cx="52" cy="455.5" r="3"/>
+            <circle class="n-ink" cx="62" cy="455.5" r="3"/>
+            <text class="x b6 ink" x="74" y="459.5">웹 · KRS eclass · R&amp;D PMS</text>
+            <text class="x ink" x="42" y="488">양식 화면 · 필드</text>
+            <text class="x ink" x="42" y="510">위임전결 규정</text>
+            <text class="x ink" x="42" y="532">결재선 · 조직</text>
+            <text class="x ink" x="42" y="554">문서설정 값</text>
+            <text class="x ink" x="42" y="576">과제 · 계정</text>
+          </g>
+
+          <!-- 2 운영 스킬: 수집 → 대조 → 업데이트 -->
+          <g class="p-pop" style="--d:1s">
+            <rect class="b-skill" x="28" y="614" width="208" height="156" rx="8"/>
+            <text class="t k-skill" x="42" y="636">운영 스킬</text>
+            <text class="x" x="106" y="636">업무 스킬과 별개</text>
+            <path class="ln ln-thin" d="M40 718H224"/>
+            <text class="x" x="42" y="736">예 <tspan class="ms ink" dx="3">ea-type-add</tspan></text>
+            <text class="x" x="42" y="752">새 양식을 탐사해 레시피를 만든다</text>
+          </g>
+          <path class="fl f-skill" pathLength="1" style="--d:1.4s;--t:.5s" d="M132 592V612"/>
+          <g class="p-in" style="--d:1.6s">
+            <path class="ln ln-skill" d="M132 592V612" marker-end="url(#a-skill)"/>
+            <text class="x b6 k-skill" x="141" y="606.5">수집</text>
+          </g>
+          <g class="p-in" style="--d:1.9s">
+            <circle class="n-skill" cx="51" cy="656" r="9"/><text class="nt" x="51" y="660.2">1</text>
+            <text class="s ink b6" x="66" y="660">수집</text>
+            <text class="x" x="124" y="660">화면 읽기 · 읽기 전용</text>
+          </g>
+          <rect class="rowhl u hold" style="--d:1.9s;--t:.7s" x="34" y="474" width="196" height="20" rx="4"/>
+          <text class="x e k-ref p-in" style="--d:2.1s" x="226" y="488">→ 레시피</text>
+          <rect class="rowhl u hold" style="--d:2.4s;--t:.7s" x="34" y="496" width="196" height="20" rx="4"/>
+          <text class="x e k-ref p-in" style="--d:2.6s" x="226" y="510">→ 레지스트리</text>
+          <rect class="rowhl u hold" style="--d:2.9s;--t:.7s" x="34" y="518" width="196" height="20" rx="4"/>
+          <text class="x e k-ref p-in" style="--d:3.1s" x="226" y="532">→ 레지스트리</text>
+          <rect class="rowhl u hold" style="--d:3.4s;--t:.7s" x="34" y="540" width="196" height="20" rx="4"/>
+          <text class="x e k-ref p-in" style="--d:3.6s" x="226" y="554">→ 레지스트리</text>
+          <rect class="rowhl u hold" style="--d:3.9s;--t:.7s" x="34" y="562" width="196" height="20" rx="4"/>
+          <text class="x e k-ref p-in" style="--d:4.1s" x="226" y="576">→ 레지스트리</text>
+          <g class="think">
+            <circle class="n-skill" style="--d:4.6s" cx="204" cy="631.5" r="3"/>
+            <circle class="n-skill" style="--d:4.75s" cx="213" cy="631.5" r="3"/>
+            <circle class="n-skill" style="--d:4.9s" cx="222" cy="631.5" r="3"/>
+          </g>
+          <g class="p-in" style="--d:4.7s">
+            <circle class="n-skill" cx="51" cy="678" r="9"/><text class="nt" x="51" y="682.2">2</text>
+            <text class="s ink b6" x="66" y="682">대조</text>
+            <text class="x" x="124" y="682">달라진 값 찾기</text>
+          </g>
+          <g class="p-in" style="--d:5.7s">
+            <circle class="n-skill" cx="51" cy="700" r="9"/><text class="nt" x="51" y="704.2">3</text>
+            <text class="s ink b6" x="66" y="704">업데이트</text>
+            <text class="x" x="124" y="704">파일 수정 · 검증</text>
+          </g>
+
+          <!-- 3 업데이트: 레시피와 레지스트리 파일을 고친다 -->
+          <path class="fl f-skill" pathLength="1" style="--d:6.1s;--t:.5s" d="M238 690H274"/>
+          <path class="fl f-skill" pathLength="1" style="--d:6.1s;--t:1.3s" d="M238 752H672V700H698"/>
+          <g class="p-in" style="--d:6.4s">
+            <path class="ln ln-skill" d="M238 690H274" marker-end="url(#a-skill)"/>
+            <path class="ln ln-skill" d="M238 752H672V700H698" marker-end="url(#a-skill)"/>
+          </g>
+          <rect class="nd n-skill" style="--d:6.6s" x="288" y="612" width="316" height="118" rx="8"/>
+          <rect class="ring f-skill pulse" style="--d:6.6s" x="273" y="557" width="346" height="188" rx="16"/>
+          <g class="p-pop" style="--d:6.9s">
+            <rect class="n-skill" x="528" y="572" width="72" height="20" rx="10"/>
+            <text class="vs c" x="564" y="586.5">업데이트</text>
+          </g>
+          <rect class="ring f-skill pulse" style="--d:7.3s" x="697" y="557" width="560" height="188" rx="16"/>
+          <rect class="nd n-skill" style="--d:7.4s" x="716" y="612" width="164" height="118" rx="8"/>
+          <rect class="nd n-skill" style="--d:7.7s" x="895" y="612" width="164" height="118" rx="8"/>
+          <rect class="nd n-skill" style="--d:8s" x="1074" y="612" width="164" height="118" rx="8"/>
+          <g class="p-pop" style="--d:8.1s">
+            <rect class="n-skill" x="1166" y="572" width="72" height="20" rx="10"/>
+            <text class="vs c" x="1202" y="586.5">업데이트</text>
+          </g>
+
+          <!-- 4 다음 품의부터: 고친 값을 스킬과 러너가 그대로 읽는다 -->
+          <path class="fl f-ref" pathLength="1" style="--d:8.9s;--t:1s" d="M380 560V492"/>
+          <path class="fl f-ref" pathLength="1" style="--d:8.9s;--t:1s" d="M700 650H660V535H560V492"/>
+          <path class="fl f-ref" pathLength="1" style="--d:8.9s;--t:1s" d="M1103 560V492"/>
+          <rect class="nd n-skill" style="--d:9.8s" x="334" y="318" width="266" height="172" rx="8"/>
+          <rect class="nd n-run" style="--d:9.8s" x="968" y="318" width="270" height="172" rx="8"/>
+        </g>
+
+        <!-- 그림 안 재생 3 · 중단했을 때: 러너가 run 에서 멈춘다 → 결과 · 검토 · fail → Claude SDK 가 보고를 확인하고 러너를 업데이트한다 → 다시 실행해 ok
+             (.on 이 붙었을 때만 보인다. .hold · .pulse · .fl · .nd 는 지나가는 표시, .p-in · .p-pop 은 끝까지 남는 표시) -->
+        <g id="fixfx" class="scene">
+          <!-- 1 첫 실행: validate · run-dry 는 통과하고 run 에서 멈춘다 -->
+          <rect class="nd n-run" style="--d:0s" x="968" y="240" width="270" height="56" rx="8"/>
+          <g class="hold" style="--d:.3s;--t:9.3s">
+            <circle class="c-run" cx="1222" cy="363" r="8"/>
+            <path class="chk ok" d="M1218 363.5l3 3 5.5-6.5"/>
+          </g>
+          <g class="hold" style="--d:.8s;--t:8.8s">
+            <circle class="c-run" cx="1222" cy="386" r="8"/>
+            <path class="chk ok" d="M1218 386.5l3 3 5.5-6.5"/>
+          </g>
+          <g class="hold" style="--d:1.4s;--t:8.2s">
+            <rect class="rowhl" x="974" y="399" width="260" height="21" rx="4"/>
+            <rect class="n-review" x="1190" y="400" width="42" height="19" rx="9.5"/>
+            <text class="vs c" x="1211" y="414">중단</text>
+          </g>
+
+          <!-- 2 중단 보고: 결과 → 검토 → fail -->
+          <path class="fl f-review" pathLength="1" style="--d:1.9s;--t:.7s" d="M1254 208H1292"/>
+          <rect class="nd n-review" style="--d:2.4s" x="1294" y="170" width="180" height="76" rx="10"/>
+          <g class="hold" style="--d:2.5s;--t:9.8s">
+            <rect class="n-review" x="1392" y="160" width="78" height="20" rx="10"/>
+            <text class="vs c" x="1431" y="174.5">exit 5 · fail</text>
+          </g>
+          <path class="fl f-review" pathLength="1" style="--d:2.7s;--t:.7s" d="M1384 246V294"/>
+          <rect class="nd n-review" style="--d:3.2s" x="1294" y="296" width="180" height="124" rx="10"/>
+          <rect class="ring thin f-review hold" style="--d:3.3s;--t:9.3s" x="1300" y="386" width="168" height="19" rx="4"/>
+          <path class="fl f-review" pathLength="1" style="--d:3.5s;--t:.8s" d="M1310 420V458H1328"/>
+          <rect class="ring f-review hold" style="--d:4.2s;--t:9.7s" x="1326" y="436" width="152" height="44" rx="22"/>
+
+          <!-- 3 Claude SDK: 보고 확인 → 원인 찾기 → 러너 업데이트 -->
+          <g class="p-pop" style="--d:4.8s">
+            <rect class="g-infer" x="952" y="14" width="522" height="74" rx="14"/>
+            <polygon class="b-infer" points="966,30 974,22 982,30 974,38"/>
+            <text class="t k-infer" x="990" y="34.5">Claude SDK</text>
+            <text class="x" x="1070" y="34.5">러너가 멈추면 보고를 확인하고 러너를 업데이트한다</text>
+          </g>
+          <g class="think">
+            <circle class="dot" style="--d:6s" cx="1434" cy="30" r="3.5"/>
+            <circle class="dot" style="--d:6.15s" cx="1446" cy="30" r="3.5"/>
+            <circle class="dot" style="--d:6.3s" cx="1458" cy="30" r="3.5"/>
+          </g>
+          <path class="fl f-infer" pathLength="1" style="--d:5.3s;--t:.8s" d="M1340 170V90"/>
+          <g class="p-in" style="--d:5.6s">
+            <path class="ln ln-infer" d="M1340 170V90" marker-end="url(#a-infer)"/>
+            <text class="x b6 k-infer" x="1349" y="136">보고를 읽는다</text>
+          </g>
+          <g class="p-pop" style="--d:6s">
+            <rect class="b-infer" x="1312" y="44" width="146" height="36" rx="8"/>
+            <circle class="n-infer" cx="1330" cy="62" r="10"/><text class="nt" x="1330" y="66.2">1</text>
+            <text class="s ink b6" x="1348" y="59">보고 확인</text>
+            <text class="x" x="1348" y="73">exit code · logs</text>
+          </g>
+          <g class="p-in" style="--d:6.8s"><path class="ln ln-infer" d="M1312 62H1288" marker-end="url(#a-infer)"/></g>
+          <g class="p-pop" style="--d:7s">
+            <rect class="b-infer" x="1140" y="44" width="146" height="36" rx="8"/>
+            <circle class="n-infer" cx="1158" cy="62" r="10"/><text class="nt" x="1158" y="66.2">2</text>
+            <text class="s ink b6" x="1176" y="59">원인 찾기</text>
+            <text class="x" x="1176" y="73">멈춘 스텝 · 이유</text>
+          </g>
+          <g class="p-in" style="--d:7.8s"><path class="ln ln-infer" d="M1140 62H1116" marker-end="url(#a-infer)"/></g>
+          <g class="p-pop" style="--d:8s">
+            <rect class="b-infer" x="968" y="44" width="146" height="36" rx="8"/>
+            <circle class="n-infer" cx="986" cy="62" r="10"/><text class="nt" x="986" y="66.2">3</text>
+            <text class="s ink b6" x="1004" y="59">러너 업데이트</text>
+            <text class="x" x="1004" y="73">스텝 코드 수정</text>
+          </g>
+          <path class="fl f-infer" pathLength="1" style="--d:8.7s;--t:.6s" d="M1041 88V108"/>
+          <g class="p-in" style="--d:9s">
+            <path class="ln ln-infer" d="M1041 88V108" marker-end="url(#a-infer)"/>
+            <text class="x b6 k-infer" x="1050" y="103">패치 적용</text>
+          </g>
+          <rect class="ring f-infer pulse" style="--d:9.2s" x="949" y="107" width="308" height="406" rx="16"/>
+          <g class="p-pop" style="--d:9.5s">
+            <rect class="n-infer" x="1166" y="122" width="72" height="20" rx="10"/>
+            <text class="vs c" x="1202" y="136.5">업데이트</text>
+          </g>
+
+          <!-- 4 다시 실행: validate → run-dry → run → ok -->
+          <rect class="nd n-run" style="--d:9.9s" x="968" y="240" width="270" height="56" rx="8"/>
+          <g class="p-pop" style="--d:10.2s">
+            <circle class="c-run" cx="1222" cy="363" r="8"/>
+            <path class="chk ok" d="M1218 363.5l3 3 5.5-6.5"/>
+          </g>
+          <g class="p-pop" style="--d:10.7s">
+            <circle class="c-run" cx="1222" cy="386" r="8"/>
+            <path class="chk ok" d="M1218 386.5l3 3 5.5-6.5"/>
+          </g>
+          <g class="p-pop" style="--d:11.2s">
+            <circle class="c-run" cx="1222" cy="409" r="8"/>
+            <path class="chk ok" d="M1218 409.5l3 3 5.5-6.5"/>
+          </g>
+          <path class="fl f-run" pathLength="1" style="--d:11.6s;--t:.7s" d="M1254 208H1292"/>
+          <rect class="nd n-run" style="--d:12.1s" x="1294" y="170" width="180" height="76" rx="10"/>
+          <g class="p-pop" style="--d:12.3s">
+            <rect class="n-run" x="1392" y="160" width="78" height="20" rx="10"/>
+            <text class="vs c" x="1431" y="174.5">exit 0 · ok</text>
+          </g>
+          <path class="fl f-run" pathLength="1" style="--d:12.5s;--t:.7s" d="M1384 246V294"/>
+          <rect class="nd n-run" style="--d:13s" x="1294" y="296" width="180" height="124" rx="10"/>
+          <path class="fl f-run" pathLength="1" style="--d:13.2s;--t:.9s" d="M1310 420V558H1328"/>
+          <rect class="ring f-run p-in" style="--d:14s" x="1326" y="536" width="152" height="44" rx="22"/>
+        </g>
+
+        <!-- 스킬 단계 표: 1단계 = 라우터 스킬(ea-router), 2단계 = 실무 스킬(ea-purchase-form · ea-research-form).
+             재생 표시(고리 · 흐림)보다 위에 오도록 재생 묶음 뒤에 둔다 -->
+        <g class="lv l1">
+          <rect class="n-skill" x="318" y="77" width="92" height="18" rx="9"/>
+          <text x="364" y="89.8">1단계 · 라우터</text>
+        </g>
+        <g class="lv out">
+          <rect class="p-wait" x="342" y="161" width="80" height="18" rx="9"/>
+          <text x="382" y="173.8">2단계 · 실무</text>
+        </g>
+        <g class="lv">
+          <rect class="p-wait" x="342" y="231" width="80" height="18" rx="9"/>
+          <text x="382" y="243.8">2단계 · 실무</text>
+        </g>
+
+        <!-- 미니맵일 때: 지금 보고 있는 자리 표시 + 누르면 돌아가는 판 -->
+        <rect class="mm-here h-input" x="20" y="16" width="184" height="272" rx="18"/>
+        <rect class="mm-here h-author" x="300" y="306" width="950" height="198" rx="18"/>
+        <rect class="mm-same a-fade" style="--d:2.3s" x="268" y="552" width="994" height="198" rx="20"/>
+        <rect class="mm-hit" x="-24" y="-24" width="1538" height="848" rx="36"/>
+        </g>
+        <!-- 상세 보기 2에서만: 재료 상자의 '레시피 · 레지스트리'와 미니맵의 보라색 영역이 같은 곳임을 잇는다 -->
+        <g id="same2">
+          <g class="a-fade" style="--d:2.3s">
+            <circle class="dot-ref" cx="40" cy="443" r="4"/>
+            <path class="ln ln-ref" d="M40 443H22V714H104" marker-end="url(#a-ref)"/>
+            <text class="x b6 k-ref" x="40" y="518">전체 흐름의 레시피 · 레지스트리와 같은 곳</text>
+          </g>
+        </g>
+      </svg>
+      <!-- YAML 구조: 'YAML 구조' 버튼을 누르면 그림 안 오른쪽 칸(입력 YAML · 러너 호출 자리)에만 뜬다.
+           pre 안의 [[빈 값|채울 값|출처|근거]] 는 '채우기'가 채우는 자리다
+           (q 견적 판독 · u 사용자 확인 · a 저작 · r 레지스트리 · c convert · f 양식 고정 · n 러너 확정 — n 은 맨 나중에 채운다) -->
+      <div class="ypop" id="ypanel" role="dialog" aria-label="YAML 구조" hidden>
+        <div class="yhead">
+          <div class="ytabs">
+            <button class="ytab" type="button" data-y="all">전체</button>
+            <button class="ytab" type="button" data-y="project">과제</button>
+            <button class="ytab" type="button" data-y="body">공문내용</button>
+            <button class="ytab" type="button" data-y="setting">문서설정</button>
+            <button class="ytab" type="button" data-y="rules">위임전결</button>
+            <button class="ytab" type="button" data-y="attach">첨부</button>
+          </div>
+          <button class="yfill" id="yfill" type="button">채우기</button>
+          <button class="yx" id="yclose" type="button" aria-label="닫기">×</button>
+        </div>
+        <div class="ypath"><span>ea_inputs/purchase_input.yaml</span><span id="ystate">빈 구조</span></div>
+
+        <div class="ybody" data-y="all" hidden>
+<pre class="yaml">form: [[|KR_EA_Research_Task|f|양식 고정 · input.template.yaml (러너가 manifest 와 대조)]]                      # 폼 고정
+fresh: [[|true|f|양식 기본값 · input.template.yaml]]                     # 새 폼에서 시작
+
+# ── 과제 ──────────────────────
+project: [[|DEMO|u|사용자 확인 · 후보는 저장해 둔 ea_projects.yaml 에서]]                   # 사용자 확인
+job_id:
+  search_type: [[|project_name|f|양식 기본값 · input.template.yaml]]
+  query: [[|예시 연구과제|r|저장해 둔 ea_projects.yaml 의 과제명(name) 그대로]]
+
+# ── 위임전결 ──────────────────
+purpose: [[|구매|f|양식 고정 · purpose.yaml 의 rule_key]]                   # 규정 키 (고정)
+amount: [[|4598000|q|견적 판독값 · 합계 (VAT 포함)]]                    # 총액 (원, VAT 포함)
+approval_line: [[|[팀장 전결, 과제 책임자 합의]|n|러너 확정 · 저장해 둔 ea_rules.yaml 구간 → ea_approval_lines.yaml 명단]]             # 러너가 확정
+
+# ── 공문내용 ──────────────────
+fields:
+  title: [[|워크스테이션 구매 품의|a|스킬 저작 · context.md 의 제목 관례 (품목 요지 + 구매 품의)]]
+  recipient: [[|""|f|양식 기본값 · 보통 빈칸으로 둔다]]               # 보통 빈칸
+  reference: [[|""|f|양식 기본값 · 빈칸]]
+  degree: [[|"1"|r|저장해 둔 ea_projects.yaml 의 과제 차수]]
+body:
+  include:
+    - [[|ea_overview.yaml|f|양식 고정 · 전문은 저장해 둔 ea_overview.yaml 에서 가져온다]]                      # 전문 공급
+  contents: |2
+        가. 구매 내역
+            (1) 구매품 : [[|워크스테이션 WS-900|q|견적 판독값 · 표기 그대로]]
+                - 사양 : [[|CPU 32코어 · RAM 128GB · GPU 24GB|q|견적 판독값 · 표기 그대로]]
+                - 용도 : [[|해석 모델 학습용 연산 장비|u|사용자 확인 · 과제 연구내용과 연결해 적는다]]
+                - 구매금액 : [[|4,598,000원 (VAT 포함)|q|견적 판독값 · amount 와 같은 값]]
+                - 구매계정 : [[|연구활동비(연구실운용비)|r|저장해 둔 ea_accounts.yaml 의 비목과 대조]]
+                - 구매사유 : [[|학습 시간 단축이 과제 일정에 필요|u|사용자 설명 · RND_PROJECT 스냅샷 근거]]
+  attachment: |2
+        ※ 첨 부
+            [[|1. 견적서 1부.  끝.|a|스킬 저작 · 실제 첨부 목록과 맞춘다 (body_spec.yaml 뼈대)]]
+  vars:
+    summary: [[|워크스테이션을 구매하고자|a|스킬 저작 · context.md 의 한 문장 관례]]
+
+# ── 첨부 ──────────────────────
+attachments:
+  files:
+    - path: [[|attachments/견적서.pdf|c|convert.py 가 견적서 이미지로 만든 PDF 의 상대경로]]
+      drm: [[|false|f|양식 기본값 · input.template.yaml]]
+
+# ── 문서설정 ──────────────────
+document_setting: [[|연구품의|f|양식 고정 · 저장해 둔 ea_setting.yaml 의 프로파일 이름]]          # ea_setting 프로파일</pre>
+        </div>
+
+        <div class="ybody" data-y="project" hidden>
+<pre class="yaml">project: [[|DEMO|u|사용자 확인 · 후보는 저장해 둔 ea_projects.yaml 에서]]                  # 과제 alias (ea_projects)
+fields:
+  degree: [[|"1"|r|저장해 둔 ea_projects.yaml 의 과제 차수]]                 # 차수(년차)
+job_id:                    # 과제 ID · R&amp;D PMS 연결
+  search_type: [[|project_name|f|양식 기본값 · input.template.yaml]]            # project_id | project_name
+  query: [[|예시 연구과제|r|저장해 둔 ea_projects.yaml 의 과제명(name) 그대로]]                  # ea_projects 의 name 그대로</pre>
+        </div>
+
+        <div class="ybody" data-y="body" hidden>
+<pre class="yaml">form: [[|KR_EA_Research_Task|f|양식 고정 · input.template.yaml (러너가 manifest 와 대조)]]                         # 폼 고정
+fields:
+  title: [[|워크스테이션 구매 품의|a|스킬 저작 · context.md 의 제목 관례 (품목 요지 + 구매 품의)]]                      # 문서 제목. 필수
+  recipient: [[|""|f|양식 기본값 · 보통 빈칸으로 둔다]]                  # 수신 (보통 빈칸)
+  reference: [[|""|f|양식 기본값 · 빈칸]]                  # 참조
+body:
+  include:
+    - [[|ea_overview.yaml|f|양식 고정 · 전문은 저장해 둔 ea_overview.yaml 에서 가져온다]]                         # 전문(preamble) 공급
+  contents: |2                 # '가.'로 시작, VAT 포함 최종가만
+        가. 구매 내역
+            (1) 구매품 : [[|워크스테이션 WS-900|q|견적 판독값 · 표기 그대로]]
+                - 사양 : [[|CPU 32코어 · RAM 128GB · GPU 24GB|q|견적 판독값 · 표기 그대로]]
+                - 용도 : [[|해석 모델 학습용 연산 장비|u|사용자 확인 · 과제 연구내용과 연결해 적는다]]
+                - 구매금액 : [[|4,598,000원 (VAT 포함)|q|견적 판독값 · amount 와 같은 값]]
+                - 구매계정 : [[|연구활동비(연구실운용비)|r|저장해 둔 ea_accounts.yaml 의 비목과 대조]]
+                - 구매사유 : [[|학습 시간 단축이 과제 일정에 필요|u|사용자 설명 · RND_PROJECT 스냅샷 근거]]
+  attachment: |2               # 실제 첨부 목록과 일치
+        ※ 첨 부
+            [[|1. 견적서 1부.  끝.|a|스킬 저작 · 실제 첨부 목록과 맞춘다 (body_spec.yaml 뼈대)]]
+  vars:
+    summary: [[|워크스테이션을 구매하고자|a|스킬 저작 · context.md 의 한 문장 관례]]                         # 전문의 {summary} 자리</pre>
+        </div>
+
+        <div class="ybody" data-y="setting" hidden>
+<pre class="yaml">document_setting: [[|연구품의|f|양식 고정 · 저장해 둔 ea_setting.yaml 의 프로파일 이름]]            # ea_setting.yaml 의 profiles 키
+
+# 러너가 프로파일에서 풀어 폼에 넣는 값 (입력 파일에는 없다)
+#   receiver: [[|내부결재|n|러너 확정 · 저장해 둔 ea_setting.yaml 의 연구품의 프로파일]]
+#   doc_no_dept: [[|&lt;기안 팀 코드&gt;|n|러너 확정 · 저장해 둔 ea_setting.yaml 의 연구품의 프로파일]]
+#   retention: [[|&lt;프로파일의 보존년한&gt;|n|러너 확정 · 저장해 둔 ea_setting.yaml 의 연구품의 프로파일]]</pre>
+        </div>
+
+        <div class="ybody" data-y="rules" hidden>
+<pre class="yaml">purpose: [[|구매|f|양식 고정 · purpose.yaml 의 rule_key]]              # 규정 키 (고정)
+amount: [[|4598000|q|견적 판독값 · 합계 (VAT 포함)]]               # 구매 총액 (원, VAT 포함). 필수
+approval_line: [[|[팀장 전결, 과제 책임자 합의]|n|러너 확정 · 저장해 둔 ea_rules.yaml 구간 → ea_approval_lines.yaml 명단]]        # 러너가 규정으로 채운다</pre>
+        </div>
+
+        <div class="ybody" data-y="attach" hidden>
+<pre class="yaml">attachments:
+  files:
+    - path: [[|attachments/견적서.pdf|c|convert.py 가 견적서 이미지로 만든 PDF 의 상대경로]]                          # ea_data 기준 상대경로
+      drm: [[|false|f|양식 기본값 · input.template.yaml]]</pre>
+        </div>
+
+        <div class="ywhy" id="ywhy"><b>근거</b><span id="ywhytext">채우기를 누르면 값마다 가져온 곳이 나온다</span></div>
+        <div class="yfoot" aria-label="채운 값의 출처">
+          <span class="q">견적 판독</span>
+          <span class="u">사용자 확인 · 저작</span>
+          <span class="r">저장해 둔 레지스트리</span>
+          <span class="c">러너 확정 · convert</span>
+          <span class="f">양식 고정</span>
+        </div>
+      </div>
+    </div>
+    <figcaption class="cap2">
+      <p id="cap-ov"><strong>상세 흐름.</strong> LLM은 판정하고 입력 파일을 쓰는 데까지만 관여한다. 이미지는 입력 YAML과 증빙 PDF 두 파일로 굳고, 러너는 그 파일과 레지스트리만 읽어 임시저장까지 간다. 위임전결과 문서설정은 입력에 적힌 키(<code>amount</code>, <code>purpose</code>, <code>document_setting</code>)를 코드가 해석해서 정한다. 왼쪽의 '흐름 재생'을 누르면 연결선을 따라 차례로 흘러 들어가는 모습이 나온다. 파란 ▶ 가 붙은 상자('견적서 이미지', '입력 사전 작성', 'fail → 중단 · 보고', '레시피', '레지스트리')를 누르면 그 단계의 과정이 이 그림 안에서 재생된다.</p>
+      <p id="cap-ops" data-view="ops" hidden><strong>레시피 · 레지스트리 업데이트.</strong> 레시피와 레지스트리는 업무 스킬과 별개인 운영 스킬이 웹(KRS eclass 등)에서 수집해 업데이트한다. 화면을 읽어 저장해 둔 값과 달라진 곳을 찾고, 파일을 고친 뒤 검증한다. 고친 값은 다음 품의부터 스킬과 러너가 그대로 읽는다. 새 양식을 탐사해 레시피를 만드는 <code>ea-type-add</code>가 그런 운영 스킬의 예다.</p>
+      <p id="cap-ocr" data-view="ocr" hidden><strong>입력에서 판단까지.</strong> 견적서 이미지와 요청을 받으면 LLM이 이미지의 글자를 직접 읽고(LLM OCR), 무슨 자료인지 추론한다. 스킬 선택은 두 번 일어난다. 먼저 LLM 라우터가 스킬 후보들의 description과 대조해 ea-router를 고르고, 이어서 ea-router(스킬)가 구매요청서인지 구매승인 품의인지 판정해 실무 스킬을 고른다. 이 단계의 판독은 판정에 필요한 만큼만 한다. 견적서와 요청 문장은 설명용 예시다. 카드의 '모델별 성능'을 누르면 모델마다 읽기 성능과 적합 여부가 나온다.</p>
+      <p id="cap-model" data-view="model" hidden><strong>모델별 읽기 성능.</strong> 카드 영수증 세 장(또렷한 것, 작고 흐린 것, 더 작고 더 흐린 것), 숙박 영수증 PDF, 왕복 항공권, 기차표 여섯 표본을 모델마다 두 번씩 읽혀 182칸을 채점했다. 막대는 맞은 칸의 비율이고, 그 아래 숫자는 한 장을 읽는 데 걸린 시간(중앙값)과 호출 한 번의 비용(첫 호출, CLI 표시값)이다. 지금 설정인 Haiku 4.5는 흐린 영수증에서 많이 틀려 81%였고, effort low로 돌린 Sonnet 5.5 · Opus 5.5 · Fable 5.1은 98~100%였다. 적합 여부는 정확도 95% 이상을 기준으로 표시했다.</p>
+      <p id="cap-yaml" data-view="yaml" hidden><strong>스킬 실행에서 러너 호출까지.</strong> ① ea-router가 고른 실무 스킬이 ② 실행되면, LLM OCR이 견적서에서 읽어 구조화해 둔 판독값과 이미 있는 참조값(레시피 양식 · 레지스트리 키)을 받는다. ③ 스킬은 두 값을 조합해 입력 YAML 한 파일을 만들고, 어디에도 없는 값은 추측하지 않고 사용자에게 묻는다. ④ 그다음 스킬이 러너를 호출하고, 러너는 그 파일만 읽어 validate, run-dry, run 순서로 임시저장까지 간다. 카드의 'YAML 보기'나 구역 줄을 누르면 작성된 YAML이 오른쪽에 뜬다. 값은 설명용 예시다.</p>
+      <p id="cap-fix" data-view="fix" hidden><strong>중단했을 때.</strong> 러너가 실행 중에 멈추면 fail로 끝나고 보고를 남긴다(exit 5 · 런타임 스텝 실패). Claude SDK가 그 보고(verdict · exit code · logs)를 확인해 멈춘 스텝과 원인을 찾고, 러너를 업데이트한 뒤 validate, run-dry, run 순서로 다시 실행한다. 종점은 그대로 임시저장이고 상신은 사람이 한다.</p>
+      <p id="cap-dt" data-view="input" hidden><strong>입력에서 판단까지.</strong> 견적서 이미지와 요청을 받으면 LLM이 이미지의 글자를 직접 읽고(LLM OCR), 무슨 자료인지 추론해 스킬을 고른다. 이 단계의 판독은 판정에 필요한 만큼만 한다. 그림 속 견적서와 요청 문장은 설명용 예시다.</p>
+      <p id="cap-author" data-view="author" hidden><strong>구조화에서 러너 호출까지.</strong> 앞 단계에서 선택된 스킬이 앞 단계의 견적 판독값, 사용자 확인, 레시피·레지스트리를 재료로 과제 · 공문내용 · 문서설정 · 위임전결 · 첨부 다섯 구역을 채운다. 다섯 구역은 입력 YAML 한 파일로 조립되고, 러너는 그 파일만 읽어 validate, run-dry, run 순서로 임시저장까지 간다. 'YAML 구조' 버튼을 누르면 그 구역의 YAML이 오른쪽 칸에 뜨고, '채우기'를 누르면 빈 구조에 값이 채워진다. 값마다 가져온 곳을 창 아래 '근거' 줄에 적고, 왼쪽의 해당 재료 상자를 굵게 표시한다. 값은 설명용 예시다.</p>
+      <button class="btn" id="detail" type="button" hidden>상세 보기</button>
+      <button class="btn" id="replay" type="button" hidden>다시 재생</button>
+      <button class="btn" id="back" type="button" hidden>전체 흐름으로</button>
+    </figcaption>
+  </figure>
+  </section>
+</main>
+
+<script>
+(function(){
+  /* 쪽 넘김: 쪽이 둘 이상일 때만 보인다 */
+  var pages=[].slice.call(document.querySelectorAll('.page')),cur=-1;
+  var ttl=document.getElementById('ttl'),pos=document.getElementById('pos');
+  var prev=document.getElementById('prev'),next=document.getElementById('next');
+  function show(i){
+    i=Math.max(0,Math.min(pages.length-1,i));
+    if(i===cur)return;
+    cur=i;
+    pages.forEach(function(p,k){p.hidden=k!==i;});
+    ttl.textContent=pages[i].getAttribute('data-title');
+    pos.textContent=(i+1)+' / '+pages.length;
+    prev.disabled=i===0;
+    next.disabled=i===pages.length-1;
+  }
+  if(pages.length<2)document.querySelector('.pager').hidden=true;
+  prev.addEventListener('click',function(){show(cur-1);});
+  next.addEventListener('click',function(){show(cur+1);});
+  show(0);
+
+  /* 그림 안 재생(scene): ▶ 상자를 누르면 전체 흐름 그림 위에서 그 단계의 과정이 재생된다 (1 · 2 · 3 · 4 · 5 키)
+     ocr  = 견적서 이미지 → LLM OCR → 판단 · 스킬 선택
+     yaml = 스킬 선택 · 실행 → 판독값 + 참조값 조합 → 입력 YAML → 러너 호출
+     fix  = 러너 중단 → Claude SDK 가 보고 확인 → 러너 업데이트 → 다시 실행
+     ops  = 운영 스킬이 웹에서 수집 → 대조 → 레시피 · 레지스트리 업데이트
+     model = LLM OCR 카드의 '모델별 성능' → 모델마다 표본 판독 · 정확도 · 시간 · 비용 → 적합 · 부적합
+     상세 보기(view): 재생 중 '상세 보기'를 누르면 전체 흐름이 미니맵으로 줄고 큰 그림이 재생된다
+     input = ocr 의 큰 그림, author = yaml 의 큰 그림 (구역별 YAML 구조 · 채우기) */
+  var svg=document.getElementById('flow');
+  var scenes={ocr:{fx:'ocrfx',detail:'input'},yaml:{fx:'yamlfx',detail:'author'},fix:{fx:'fixfx'},ops:{fx:'opsfx'},model:{fx:'modelfx'}};
+  var details={input:true,author:true};
+  var capOv=document.getElementById('cap-ov');
+  var caps=[].slice.call(document.querySelectorAll('p[data-view]'));
+  var replay=document.getElementById('replay'),back=document.getElementById('back'),detailBtn=document.getElementById('detail');
+  var view=null,scene=null;
+  function play(){
+    svg.classList.remove('play');
+    void svg.getBoundingClientRect();
+    svg.classList.add('play');
+  }
+  function setHash(h){
+    try{history.replaceState(null,'',h||(location.pathname+location.search));}catch(e){}
+  }
+  function sync(){
+    var shown=view||scene;
+    capOv.hidden=!!shown;
+    caps.forEach(function(c){c.hidden=c.getAttribute('data-view')!==shown;});
+    replay.hidden=!shown;
+    back.hidden=!shown;
+    back.textContent=scene?'재생 끝내기':'전체 흐름으로';
+    detailBtn.hidden=!(scene&&scenes[scene].detail);
+  }
+  /* 흐름 재생: 전체 흐름에서 연결선을 따라 차례로 흘러 들어가는 모습 (약 12초, 다시 누르면 처음부터) */
+  var flowBtn=document.getElementById('flowbtn'),flowTimer=null;
+  function stopFlow(){clearTimeout(flowTimer);svg.classList.remove('flowing');}
+  function playFlow(){
+    if(view)return;
+    stopScene();
+    stopFlow();
+    void svg.getBoundingClientRect();
+    svg.classList.add('flowing');
+    flowTimer=setTimeout(stopFlow,12500);
+  }
+  if(flowBtn){
+    flowBtn.addEventListener('click',playFlow);
+    flowBtn.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();playFlow();}
+    });
+  }
+
+  /* 그림 안 재생: 그 단계의 표시 묶음(.scene)에 .on 을 붙이면 순서대로 나타난다 (10~20초, 다시 누르면 처음부터).
+     다 재생된 모습으로 남고, Esc 나 '재생 끝내기'로 끈다. 한 번에 하나만 켠다 */
+  function sceneEl(s){return document.getElementById(scenes[s].fx);}
+  function stopScene(){
+    if(!scene)return;
+    if(panel&&!panel.hidden)closeYaml();
+    sceneEl(scene).classList.remove('on');
+    scene=null;
+    sync();
+    setHash('');
+  }
+  /* done 을 주면 재생 없이 다 재생된 모습으로 바로 켠다 */
+  function playScene(s,done){
+    if(view||!scenes[s])return;
+    stopFlow();
+    if(panel&&!panel.hidden)closeYaml();
+    if(scene)sceneEl(scene).classList.remove('on');
+    var g=sceneEl(s);
+    void svg.getBoundingClientRect();
+    g.classList[done?'add':'remove']('done');
+    g.classList.add('on');
+    scene=s;
+    sync();
+  }
+  var triggers={'open-input':'ocr','open-author':'yaml','open-fix':'fix','fixbtn':'fix','open-ops-a':'ops','open-ops-b':'ops','open-model':'model'};
+  Object.keys(triggers).forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener('click',function(){playScene(triggers[id]);});
+    el.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();playScene(triggers[id]);}
+    });
+  });
+
+  /* 모델별 성능 카드의 '판독 보기': 견적서를 읽는 카드로 돌아간다 (다시 재생하지 않고 다 읽은 모습으로) */
+  var backOcr=document.getElementById('back-ocr');
+  if(backOcr){
+    backOcr.addEventListener('click',function(){playScene('ocr',true);});
+    backOcr.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();playScene('ocr',true);}
+    });
+  }
+
+  function openDetail(v){
+    if(view===v||!details[v])return;
+    stopFlow();
+    stopScene();
+    if(!view&&bodies)bodies.forEach(function(b){emptyAll(b);});  /* 상세 보기의 YAML 창은 빈 구조부터 */
+    if(view)svg.classList.remove('v-'+view);
+    view=v;
+    svg.classList.add('focus');
+    svg.classList.add('v-'+v);
+    play();
+    sync();
+    setHash('#'+v);
+  }
+  function closeDetail(){
+    if(!view)return;
+    closeYaml();
+    svg.classList.remove('v-'+view);
+    svg.classList.remove('focus');
+    svg.classList.remove('play');
+    view=null;
+    sync();
+    setHash('');
+  }
+  svg.querySelector('.mm-hit').addEventListener('click',closeDetail);
+  back.addEventListener('click',function(){if(scene)stopScene();else closeDetail();});
+  replay.addEventListener('click',function(){if(scene)playScene(scene);else play();});
+  detailBtn.addEventListener('click',function(){if(scene&&scenes[scene].detail)openDetail(scenes[scene].detail);});
+
+  /* YAML 창: 'YAML 구조' 버튼 → 그림 안 오른쪽 칸 자리에 그 구역의 YAML 하나 */
+  var panel=document.getElementById('ypanel');
+  var tabs=[].slice.call(panel.querySelectorAll('.ytab'));
+  var bodies=[].slice.call(panel.querySelectorAll('.ybody'));
+  var fillBtn=document.getElementById('yfill'),stateEl=document.getElementById('ystate');
+  var current=null;
+
+  /* 색칠: 키 · 주석 · <자리표시자>, 그리고 [[빈 값|채울 값|출처]] → 채우기 자리(.slot) */
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function escA(s){return esc(s).replace(/"/g,'&quot;');}
+  function mark(s){
+    return s.replace(/&lt;[^&]*?&gt;/g,function(m){return '<span class="yp">'+m+'</span>';});
+  }
+  function inline(s){
+    var out='',re=/\[\[(.*?)\|(.*?)\|(\w)(?:\|(.*?))?\]\]/g,last=0,m;
+    while((m=re.exec(s))){
+      out+=mark(esc(s.slice(last,m.index)));
+      out+='<span class="slot" data-src="'+m[3]+'" data-empty="'+escA(m[1])+'" data-fill="'+escA(m[2])+'" data-why="'+escA(m[4]||'')+'">'+esc(m[1])+'</span>';
+      last=re.lastIndex;
+    }
+    return out+mark(esc(s.slice(last)));
+  }
+  function paint(src){
+    var block=-1;
+    return src.split('\n').map(function(line){
+      var indent=line.search(/\S/);
+      if(block>=0){
+        if(indent<0||indent>block)return inline(line);
+        block=-1;
+      }
+      var c='',i=line.search(/(^|\s)#/);
+      if(i>=0){if(line.charAt(i)!=='#')i++;c=line.slice(i);line=line.slice(0,i);}
+      if(/:\s*\|[0-9+-]*\s*$/.test(line))block=indent;
+      var k=/^(\s*(?:-\s+)?(?:\{\s*)?)([^\s:#<\-{\[][^:#]*?)(:)(?=\s|$)/.exec(line),out;
+      if(k)out=esc(k[1])+'<span class="yk">'+esc(k[2])+'</span>:'+inline(line.slice(k[0].length));
+      else out=inline(line);
+      return out+(c?'<span class="yc">'+inline(c)+'</span>':'');
+    }).join('\n');
+  }
+  [].forEach.call(panel.querySelectorAll('pre.yaml'),function(p){p.innerHTML=paint(p.textContent);});
+
+  /* 채우기 자리 뒤의 빈칸(주석 앞)을 기억해 두고, 값이 길어지면 그만큼 줄여 주석 줄을 맞춘다 */
+  function cols(s){var n=0;for(var i=0;i<s.length;i++)n+=s.charCodeAt(i)>0x2E7F?1.67:1;return n;}
+  function slotsOf(body){return [].slice.call(body.querySelectorAll('.slot'));}
+  [].forEach.call(panel.querySelectorAll('.slot'),function(s){
+    var t=s.nextSibling;
+    if(t&&t.nodeType===3&&/^ +$/.test(t.nodeValue)&&t.nextSibling&&t.nextSibling.className==='yc')s._pad=t.nodeValue.length;
+  });
+  function setSlot(s,text){
+    s.textContent=text;
+    if(s._pad!=null){
+      var n=Math.max(2,Math.round(s._pad-(cols(text)-cols(s.getAttribute('data-empty')))));
+      s.nextSibling.nodeValue=new Array(n+1).join(' ');
+    }
+  }
+  /* 근거 표시: 값마다 가져온 곳을 창 아래 한 줄에 적고, 그림 왼쪽의 재료 상자(견적 판독값 · 사용자 확인 · 레시피·레지스트리)에 불을 켠다 */
+  var whyEl=document.getElementById('ywhy'),whyText=document.getElementById('ywhytext');
+  var WHY={q:'견적 판독값 (LLM OCR)',u:'사용자 확인',a:'스킬 저작 · 레시피 관례',r:'저장해 둔 레지스트리',c:'convert 가 만든 PDF',f:'양식 고정 · input.template.yaml',n:'러너 확정 · 저장해 둔 레지스트리'};
+  var BOX={q:'srcbox-q',u:'srcbox-u',r:'srcbox-r',a:'srcbox-r',f:'srcbox-r',n:'srcbox-r'};
+  var srcBoxes=[].slice.call(svg.querySelectorAll('.srcbox'));
+  function showWhy(s){
+    var src=s?s.getAttribute('data-src'):'';
+    whyEl.className='ywhy'+(src?' '+src:'');
+    whyText.textContent=s?(s.getAttribute('data-why')||WHY[src]||''):(current&&current._filled?'값에 마우스를 올리면 가져온 곳이 나온다':'채우기를 누르면 값마다 가져온 곳이 나온다');
+    srcBoxes.forEach(function(b){if(s&&b.id===BOX[src])b.classList.add('lit');else b.classList.remove('lit');});
+  }
+  panel.addEventListener('mouseover',function(e){
+    var s=e.target.closest?e.target.closest('.slot.filled'):null;
+    if(s&&current&&!current._busy)showWhy(s);
+  });
+  panel.addEventListener('mouseout',function(e){
+    var s=e.target.closest?e.target.closest('.slot.filled'):null;
+    if(s&&current&&!current._busy)showWhy(null);
+  });
+  panel.addEventListener('click',function(e){
+    var s=e.target.closest?e.target.closest('.slot.filled'):null;
+    if(s&&current&&!current._busy)showWhy(s);
+  });
+
+  function fillAll(body){
+    slotsOf(body).forEach(function(s){setSlot(s,s.getAttribute('data-fill'));s.classList.remove('filling');s.classList.add('filled');});
+    body._filled=true;body._busy=false;
+  }
+  function emptyAll(body){
+    slotsOf(body).forEach(function(s){setSlot(s,s.getAttribute('data-empty'));s.classList.remove('filling');s.classList.remove('filled');});
+    body._filled=false;body._busy=false;
+  }
+  function syncFill(){
+    if(!current)return;
+    fillBtn.disabled=!!current._busy;
+    fillBtn.textContent=current._busy?'채우는 중':(current._filled?'비우기':'채우기');
+    stateEl.textContent=current._busy?(current._runner?'러너가 확정하는 중':'스킬이 채우는 중'):(current._filled?'채움 · 설명용 예시':'빈 구조');
+  }
+  /* 채우는 순서: 스킬이 적는 값을 위에서부터, 러너가 확정하는 값(n)은 맨 나중에 */
+  function ordered(body){
+    var all=slotsOf(body);
+    return all.filter(function(s){return s.getAttribute('data-src')!=='n';})
+      .concat(all.filter(function(s){return s.getAttribute('data-src')==='n';}));
+  }
+
+  /* 채우기 쇼: 자리마다 한 글자씩 넣는다. 탭을 바꾸거나 닫으면 진행 중이던 쇼는 끝까지 채운 상태로 멈춘다 */
+  var run=0;
+  function stopShow(){
+    run++;
+    bodies.forEach(function(b){if(b._busy)fillAll(b);});
+  }
+  function keepVisible(body,s){
+    var b=body.getBoundingClientRect(),r=s.getBoundingClientRect(),m=r.height*2.5;
+    if(r.bottom>b.bottom-m)body.scrollTop+=r.bottom-(b.bottom-m);
+    else if(r.top<b.top+m)body.scrollTop-=(b.top+m)-r.top;
+  }
+  function showFill(body){
+    var list=ordered(body),my=++run,i=0;
+    emptyAll(body);
+    body._busy=true;
+    body._runner=false;
+    body.scrollTop=0;
+    syncFill();
+    function nextSlot(){
+      if(my!==run)return;
+      if(i>=list.length){body._busy=false;body._runner=false;body._filled=true;syncFill();showWhy(null);return;}
+      var s=list[i++],text=s.getAttribute('data-fill');
+      var byRunner=s.getAttribute('data-src')==='n';
+      if(byRunner!==body._runner){body._runner=byRunner;syncFill();}
+      showWhy(s);
+      var chars=Array.from?Array.from(text):text.split(''),k=0;
+      var step=Math.max(10,Math.min(34,560/Math.max(1,chars.length)));
+      s.classList.add('filling');
+      setSlot(s,'');
+      keepVisible(body,s);
+      (function type(){
+        if(my!==run)return;
+        if(k<chars.length){k++;setSlot(s,chars.slice(0,k).join(''));setTimeout(type,step);}
+        else{s.classList.remove('filling');s.classList.add('filled');setTimeout(nextSlot,160);}
+      })();
+    }
+    setTimeout(nextSlot,250);
+  }
+  fillBtn.addEventListener('click',function(){
+    if(!current||current._busy)return;
+    if(current._filled){emptyAll(current);syncFill();showWhy(null);}
+    else showFill(current);
+  });
+
+  /* 창은 그림 안의 한 칸 자리에 맞춰 놓는다. 전체 화면을 덮지 않는다.
+     상세 보기에서는 #yzone(오른쪽 칸), 그림 안 재생 2에서는 #yzone2(입력 YAML 카드 오른쪽 칸) */
+  var zones={detail:document.getElementById('yzone'),scene:document.getElementById('yzone2')};
+  var scroller=panel.parentNode;
+  function place(){
+    var zone=view?zones.detail:zones.scene;
+    if(panel.hidden||!zone)return;
+    var z=zone.getBoundingClientRect(),s=scroller.getBoundingClientRect();
+    panel.style.left=(z.left-s.left+scroller.scrollLeft-scroller.clientLeft)+'px';
+    panel.style.top=(z.top-s.top+scroller.scrollTop-scroller.clientTop)+'px';
+    panel.style.width=z.width+'px';
+    panel.style.height=z.height+'px';
+    panel.style.fontSize=(11*z.width/parseFloat(zone.getAttribute('width')))+'px';
+  }
+  window.addEventListener('resize',place);
+  function openYaml(key){
+    var shown=null;
+    bodies.forEach(function(b){if(b.getAttribute('data-y')===key)shown=b;});
+    if(!shown)return;
+    stopShow();
+    bodies.forEach(function(b){b.hidden=b!==shown;});
+    tabs.forEach(function(t){t.setAttribute('aria-pressed',t.getAttribute('data-y')===key?'true':'false');});
+    current=shown;
+    /* 그림 안 재생에서 열면 작성된 YAML 을 바로 보여 준다 (상세 보기에서는 빈 구조부터) */
+    if(!view&&!shown._filled)fillAll(shown);
+    panel.hidden=false;
+    place();
+    shown.scrollTop=0;
+    syncFill();
+    showWhy(null);
+  }
+  function closeYaml(){stopShow();panel.hidden=true;showWhy(null);}
+  tabs.forEach(function(t){t.addEventListener('click',function(){openYaml(t.getAttribute('data-y'));});});
+  document.getElementById('yclose').addEventListener('click',closeYaml);
+  [].forEach.call(svg.querySelectorAll('.ybtn,.yrow'),function(b){
+    var key=b.getAttribute('data-y');
+    b.addEventListener('click',function(){openYaml(key);});
+    b.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();openYaml(key);}
+    });
+  });
+
+  document.addEventListener('keydown',function(e){
+    if(e.altKey||e.ctrlKey||e.metaKey)return;
+    var k=e.key;
+    if(k==='Escape'||k==='Backspace'){
+      if(!panel.hidden){closeYaml();e.preventDefault();}
+      else if(view){closeDetail();e.preventDefault();}
+      else if(scene){stopScene();e.preventDefault();}
+    }
+    else if(k==='r'||k==='R'||k==='ㄱ'){if(view){if(panel.hidden)play();}else if(scene)playScene(scene);}
+    else if(k==='f'||k==='F'||k==='ㄹ'){if(!view)playFlow();}
+    else if(k==='1'){if(!view)playScene('ocr');}
+    else if(k==='2'){if(!view)playScene('yaml');}
+    else if(k==='3'||k==='s'||k==='S'||k==='ㄴ'){if(!view)playScene('fix');}
+    else if(k==='4'){if(!view)playScene('ops');}
+    else if(k==='5'){if(!view)playScene('model');}
+    else if(k==='ArrowRight'||k==='PageDown'){if(pages.length>1){show(cur+1);e.preventDefault();}}
+    else if(k==='ArrowLeft'||k==='PageUp'){if(pages.length>1){show(cur-1);e.preventDefault();}}
+  });
+
+  try{var h=(location.hash||'').replace('#','');if(details[h])openDetail(h);else if(scenes[h])setHash('');}catch(e){}  /* 그림 안 재생은 열자마자 시작하지 않는다 — 눌러야 시작한다 */
+
+  var fs=document.getElementById('fs'),root=document.documentElement;
+  if(!document.fullscreenEnabled||!root.requestFullscreen){fs.hidden=true;return;}
+  fs.addEventListener('click',function(){
+    if(document.fullscreenElement){document.exitFullscreen();return;}
+    root.requestFullscreen().catch(function(){fs.hidden=true;});
+  });
+  document.addEventListener('fullscreenchange',function(){
+    fs.textContent=document.fullscreenElement?'전체 화면 끝내기':'전체 화면';
+  });
+})();
+</script>
+</body>
+</html>

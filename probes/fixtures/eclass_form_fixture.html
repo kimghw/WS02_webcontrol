@@ -1,0 +1,77 @@
+<!doctype html>
+<!-- eclass DocumentView 모사 fixture(비식별) — probes/ea_eclass_probe.py snapshot --url file:///.../eclass_form_fixture.html
+     로 오프라인·샌드박스에서 프레임 인벤토리·fieldmap 초안 생성을 검증한다. 실서버 셀렉터 규칙(ctl00_ 접두,
+     _dateInput, rpt*_ctlNN_*, __doPostBack LinkButton, #dext_body)을 흉내 낼 뿐 실제 값·개인정보는 없다. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>DocumentView fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  iframe { width: 100%; border: 1px solid #999; }
+  #toolbar { height: 60px; }
+  #REA_form { height: 640px; }
+</style>
+</head>
+<body>
+<iframe id="toolbar" name="toolbar"></iframe>
+<iframe id="REA_form" name="REA_form"></iframe>
+
+<script type="text/template" id="tpl-toolbar">
+<!doctype html><html><head><meta charset="utf-8"><title>toolbar</title></head><body>
+<input type="hidden" name="__VIEWSTATE" value="x">
+<input type="button" id="btnSave" value="저장">
+<input type="button" id="btnApproval" value="상신">
+<input type="button" id="btnAppLine" value="결재선">
+<input type="button" id="btnAttach" value="첨부">
+</body></html>
+</script>
+
+<script type="text/template" id="tpl-form">
+<!doctype html><html><head><meta charset="utf-8"><title>form</title>
+<style>td, th { border: 1px solid #ccc; padding: 4px; } table { border-collapse: collapse; margin: 6px; }</style>
+</head><body>
+<input type="hidden" name="__VIEWSTATE" value="x">
+<input type="hidden" name="__EVENTTARGET" value="">
+<table>
+  <tr><td>제목</td><td><input type="text" id="ctl00_ApplineInfoInReportKRTA1_txtDocTitle" size="60"></td></tr>
+</table>
+<table>
+  <tr><td>구매대상구분</td><td>
+    <input type="checkbox" id="ctl00_ContentPlaceHolder_Content_GuMeDeSang_0"><label for="ctl00_ContentPlaceHolder_Content_GuMeDeSang_0">PC류</label>
+    <input type="checkbox" id="ctl00_ContentPlaceHolder_Content_GuMeDeSang_1"><label for="ctl00_ContentPlaceHolder_Content_GuMeDeSang_1">자산</label>
+    <input type="checkbox" id="ctl00_ContentPlaceHolder_Content_GuMeDeSang_2"><label for="ctl00_ContentPlaceHolder_Content_GuMeDeSang_2">용역</label>
+  </td></tr>
+  <tr><td>사업내용</td><td><textarea id="ctl00_ContentPlaceHolder_Content_SaUpNeYong" rows="4" cols="60"></textarea></td></tr>
+  <tr><td>예산유형</td><td>
+    <select id="ctl00_ContentPlaceHolder_Content_ddlYesanType">
+      <option value="">선택</option><option value="1">일반사업</option><option value="2">국가수탁과제</option>
+    </select>
+  </td></tr>
+  <tr><td>납품요청일</td><td><input type="text" id="ctl00_ContentPlaceHolder_Content_dtpEDate_dateInput" class="riTextBox riEnabled"></td></tr>
+  <tr><td>납품장소</td><td><input type="text" id="ctl00_ContentPlaceHolder_Content_NapumPlace" maxlength="100"></td></tr>
+  <tr><td>긴급여부</td><td>
+    <input type="radio" name="urgent" id="ctl00_ContentPlaceHolder_Content_rblUrgent_0"><label for="ctl00_ContentPlaceHolder_Content_rblUrgent_0">예</label>
+    <input type="radio" name="urgent" id="ctl00_ContentPlaceHolder_Content_rblUrgent_1"><label for="ctl00_ContentPlaceHolder_Content_rblUrgent_1">아니오</label>
+  </td></tr>
+  <tr><td>첨부</td><td><input type="file" id="ctl00_ContentPlaceHolder_Content_fuAttach"></td></tr>
+</table>
+<table id="ctl00_ContentPlaceHolder_Content_tblItems">
+  <tr><th>품명</th><th>수량</th><th>예상금액</th></tr>
+  <tr>
+    <td><input type="text" id="ctl00_ContentPlaceHolder_Content_rptRequet_ctl01_txtItemName"></td>
+    <td><input type="text" id="ctl00_ContentPlaceHolder_Content_rptRequet_ctl01_txtCnt"></td>
+    <td><input type="text" id="ctl00_ContentPlaceHolder_Content_rptRequet_ctl01_txtEstimate"></td>
+  </tr>
+</table>
+<a id="ctl00_ContentPlaceHolder_Content_LinkButton1" href="javascript:__doPostBack('ctl00$ContentPlaceHolder_Content$LinkButton1','')">행추가</a>
+<div id="dext_body" contenteditable="true" style="border:1px solid #888; min-height:80px; margin:6px;">본문</div>
+</body></html>
+</script>
+
+<script>
+  document.getElementById('toolbar').srcdoc = document.getElementById('tpl-toolbar').textContent;
+  document.getElementById('REA_form').srcdoc = document.getElementById('tpl-form').textContent;
+</script>
+</body>
+</html>

@@ -1,0 +1,1755 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>:root{color-scheme:light;box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+<title>웹 접속과 CDP 제어</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* layout: 발표 화면용 한 장. 얇은 제목 줄 아래에 그림이 화면에 맞춰 들어가고, 아래 줄에서 재생을 고르고 한 단계씩 넘긴다 */
+:root{
+  --bg:#F4F5F8; --surface:#FFFFFF; --ink:#1A2130; --ink-2:#465166; --ink-3:#77818F;
+  --line:#D5DAE3; --line-strong:#5A6578;
+  --req:#2D58B5; --req-bg:#E2EAFA;     /* 요청 · 브라우저 */
+  --res:#2B774A; --res-bg:#DFF0E4;     /* 응답 · 서버 */
+  --cdp:#BC364C; --cdp-bg:#FBE2E5;     /* CDP 가 손대는 곳 */
+  --lock:#4B586C; --lock-bg:#E8ECF2;   /* 암호화된 구간 */
+  --raw:#9A5B00; --raw-bg:#FBEBD0;     /* 일반 스크립트 · 거절 */
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","D2Coding",Consolas,"Malgun Gothic",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11141A; --surface:#1A1F28; --ink:#E6E9EF; --ink-2:#B4BBC9; --ink-3:#8791A1;
+    --line:#303746; --line-strong:#8D97A9;
+    --req:#8DAEF4; --req-bg:#1B2946;
+    --res:#7AC998; --res-bg:#15301F;
+    --cdp:#EE8799; --cdp-bg:#3B1921;
+    --lock:#A7B2C4; --lock-bg:#222935;
+    --raw:#F0B35B; --raw-bg:#3A2A10;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11141A; --surface:#1A1F28; --ink:#E6E9EF; --ink-2:#B4BBC9; --ink-3:#8791A1;
+  --line:#303746; --line-strong:#8D97A9;
+  --req:#8DAEF4; --req-bg:#1B2946;
+  --res:#7AC998; --res-bg:#15301F;
+  --cdp:#EE8799; --cdp-bg:#3B1921;
+  --lock:#A7B2C4; --lock-bg:#222935;
+  --raw:#F0B35B; --raw-bg:#3A2A10;
+  color-scheme:dark;
+}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;display:flex;flex-direction:column}
+
+.bar{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 18px;padding-inline:clamp(16px,2.4vw,36px);padding-block:14px 10px}
+.bar h1{font-size:clamp(17px,1.5vw,22px);line-height:1.3;font-weight:700;margin:0;text-wrap:balance}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--ink-3);margin:0}
+.tools{margin-left:auto;align-self:center;display:flex;gap:8px}
+.btn{font:500 13px var(--sans);color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--line-strong);color:var(--ink)}
+.btn:focus-visible,.chip:focus-visible{outline:2px solid var(--req);outline-offset:2px}
+.btn:disabled{opacity:.4;cursor:default}
+/* 재생 고르기: 고른 것만 채워진다 */
+.btn.go{font-weight:600;color:var(--req);border-color:var(--req)}
+.btn.go.cdp{color:var(--cdp);border-color:var(--cdp)}
+.btn.go:hover{color:var(--req);border-color:var(--req);background:var(--req-bg)}
+.btn.go.cdp:hover{color:var(--cdp);border-color:var(--cdp);background:var(--cdp-bg)}
+.btn.go[aria-pressed="true"]{color:var(--surface);background:var(--req)}
+.btn.go.cdp[aria-pressed="true"]{color:var(--surface);background:var(--cdp)}
+.btn.go.raw{color:var(--raw);border-color:var(--raw)}
+.btn.go.raw:hover{color:var(--raw);border-color:var(--raw);background:var(--raw-bg)}
+.btn.go.raw[aria-pressed="true"]{color:var(--surface);background:var(--raw)}
+
+.stage{flex:1;min-height:0;padding-inline:clamp(16px,2.4vw,36px);padding-block:0 clamp(12px,2vh,24px)}
+.fig{height:100%;margin:0;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.scroll{flex:1;min-height:400px;position:relative}
+.dg{position:absolute;left:16px;top:16px;width:calc(100% - 32px);height:calc(100% - 32px)}
+
+/* 아래 줄: 재생 고르기 · 단계 표 / 설명 · 넘김 */
+.cap{border-top:1px solid var(--line);padding:10px 20px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 16px;align-items:center}
+.modes{grid-column:1;display:flex;flex-wrap:wrap;gap:8px}
+.steps{grid-column:2/4;display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;padding:0;list-style:none}
+.chip{font:500 12.5px var(--sans);color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:2px 11px;cursor:pointer}
+.chip:hover{border-color:var(--line-strong);color:var(--ink)}
+.chip.cdp{color:var(--cdp)}
+.chip.done{border-color:var(--line-strong)}
+.chip[aria-current="step"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.chip.cdp[aria-current="step"]{background:var(--cdp);border-color:var(--cdp)}
+.chip.raw{color:var(--raw)}
+.chip.raw[aria-current="step"]{background:var(--raw);border-color:var(--raw);color:var(--surface)}
+#cap{grid-column:1/3;margin:0;min-height:3.2em;max-width:112ch;color:var(--ink-2);font-size:14px}
+#cap strong{color:var(--ink)}
+.ctl{grid-column:3;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+code{font-family:var(--mono);font-size:.9em;background:var(--lock-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+
+/* 옆 칸(자세히 보기): 일반 스크립트 방식과 CDP 방식의 차이를 표로 적어 둔다. 그림 위에 오른쪽에서 겹쳐 열리고, 재생 중에는 지금 단계와 관련된 줄에 색이 든다 */
+.side{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);border-left:1px solid var(--line);box-shadow:-16px 0 40px rgba(0,0,0,.14);z-index:20;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.side-bar{display:flex;align-items:flex-start;gap:12px;padding:14px 20px 10px;border-bottom:1px solid var(--line)}
+.side-bar>div{flex:1;min-width:0}
+.side-bar h2{font-size:16px;line-height:1.3;margin:2px 0 0;text-wrap:balance}
+.side-body{overflow:auto;padding:4px 20px 28px;font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.side-body h3{font-size:13px;letter-spacing:.02em;color:var(--ink);margin:22px 0 8px;padding-top:14px;border-top:1px solid var(--line)}
+.side-body h3:first-of-type{border-top:0;padding-top:0;margin-top:16px}
+.side-body p{margin:0 0 10px}
+.side-body .lead{color:var(--ink);font-size:14px}
+.side-body strong{color:var(--ink)}
+.side-body ul,.side-body ol{margin:0 0 10px;padding-left:20px}
+.side-body li{margin:4px 0}
+.side-body .note{font-size:12.5px;color:var(--ink-3)}
+.cmp{width:100%;border-collapse:collapse;font-size:12.5px;line-height:1.5;margin:6px 0 8px}
+.cmp th,.cmp td{text-align:left;vertical-align:top;padding:7px 8px;border-top:1px solid var(--line)}
+.cmp th{font-weight:600;color:var(--ink-3);font-size:11.5px;border-top:0;padding-top:0}
+.cmp td:first-child{color:var(--ink);font-weight:600;width:24%}
+.cmp .sub{display:block;font:11px var(--mono);font-weight:400;color:var(--ink-3)}
+.cmp .no{color:var(--raw);font-weight:600}
+.cmp .ok{color:var(--res);font-weight:600}
+.cmp tr.cur td{background:var(--req-bg)}
+.cmp tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--req)}
+kbd{font:600 11px var(--mono);color:var(--ink-2);background:var(--bg);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px}
+
+/* 좁거나 낮은 화면: 화면 맞춤 대신 그림을 읽을 수 있는 크기로 두고 그림 안에서 가로 스크롤 */
+@media (max-width:960px),(max-height:540px){
+  html,body{height:auto}
+  .stage{flex:none}
+  .fig{height:auto}
+  .scroll{flex:none;min-height:0;overflow-x:auto;padding:16px}
+  .dg{position:static;display:block;width:1280px;height:auto}
+  .cap{grid-template-columns:minmax(0,1fr)}
+  .modes,.steps,#cap,.ctl{grid-column:1}
+  .ctl{justify-content:flex-start}
+}
+
+/* diagram */
+.dg text{font-family:var(--sans);font-size:12.5px;fill:var(--ink)}
+.dg .t{font-size:14px;font-weight:600}
+.dg .h2{font-size:17px;font-weight:700}
+.dg .s{font-size:12px;fill:var(--ink-2)}
+.dg .x{font-size:11px;fill:var(--ink-2)}
+.dg .lb{font-size:10.5px;fill:var(--ink-3)}
+.dg .m{font-family:var(--mono);font-size:11px;fill:var(--ink-2)}
+.dg .mb{font-family:var(--mono);font-size:11px;font-weight:600;fill:var(--ink)}
+.dg .num{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.dg .big{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.dg .c{text-anchor:middle}
+.dg .e{text-anchor:end}
+.dg .b6{font-weight:600}
+.dg .ink{fill:var(--ink)}
+.dg .w{fill:var(--surface)}
+.dg .k-req{fill:var(--req)}
+.dg .k-res{fill:var(--res)}
+.dg .k-cdp{fill:var(--cdp)}
+.dg .k-lock{fill:var(--lock)}
+.dg .k-raw{fill:var(--raw)}
+.dg .g-br{fill:var(--req-bg);stroke:var(--req);stroke-width:1.5}
+.dg .g-sv{fill:var(--res-bg);stroke:var(--res);stroke-width:1.5}
+.dg .g-net{fill:var(--lock-bg);stroke:var(--lock);stroke-width:1.5;stroke-dasharray:6 5}
+.dg .g-cdp{fill:var(--cdp-bg);stroke:var(--cdp);stroke-width:1.5}
+.dg .card{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+.dg .card.req{stroke:var(--req)}
+.dg .card.res{stroke:var(--res)}
+.dg .card.raw{stroke:var(--raw)}
+.dg .cell{fill:var(--bg);stroke:var(--line);stroke-width:1}
+.dg .cell.req{fill:var(--req-bg);stroke:var(--req)}
+.dg .cell.res{fill:var(--res-bg);stroke:var(--res)}
+.dg .cell.cdp{fill:var(--cdp-bg);stroke:var(--cdp);stroke-width:1.25}
+.dg .cell.raw{fill:var(--raw-bg);stroke:var(--raw);stroke-width:1.25}
+.dg .cell.dashed{stroke-dasharray:4 3}
+.dg .band{fill:var(--lock-bg)}
+.dg .pill{fill:var(--surface);stroke:var(--line);stroke-width:1}
+.dg .ln{fill:none;stroke:var(--line-strong);stroke-width:1.5}
+.dg .ln.req{stroke:var(--req);stroke-width:2}
+.dg .ln.res{stroke:var(--res);stroke-width:2}
+.dg .ln.cdp{stroke:var(--cdp);stroke-width:2}
+.dg .ln.raw{stroke:var(--raw);stroke-width:2}
+.dg .ln.lock{stroke:var(--lock)}
+.dg .ln.thin{stroke:var(--line);stroke-width:1}
+.dg .dash{stroke-dasharray:5 4}
+.dg .mk-ink{fill:var(--line-strong)}
+.dg .mk-req{fill:var(--req)}
+.dg .mk-res{fill:var(--res)}
+.dg .mk-cdp{fill:var(--cdp)}
+.dg .mk-raw{fill:var(--raw)}
+.dg .badge{fill:var(--ink)}
+.dg .bn{font-size:12.5px;font-weight:700;fill:var(--surface);text-anchor:middle}
+.dg .dotc{fill:var(--line-strong)}
+.dg .field{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+.dg .btnq{fill:var(--req)}
+.dg .fig-skin{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+.dg .fig-body{fill:var(--req-bg);stroke:var(--req);stroke-width:1.5}
+.dg .fig-dev{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+.dg .av{fill:var(--req-bg);stroke:var(--req);stroke-width:1.5}
+.dg .avl{fill:var(--surface);stroke:var(--req);stroke-width:1.5}
+.dg .cur{fill:var(--surface);stroke:var(--ink);stroke-width:1.25;stroke-linejoin:round}
+.dg .ph{stroke:var(--line-strong);stroke-width:1.25}
+.dg .p1{fill:var(--req-bg)}
+.dg .p2{fill:var(--lock-bg)}
+.dg .p3{fill:var(--cdp-bg)}
+.dg .p4{fill:var(--res-bg)}
+.dg .phs{fill:var(--surface);opacity:.75}
+.dg .stack{fill:var(--surface);stroke:var(--lock);stroke-width:1.25}
+.dg .lk{fill:var(--lock)}
+.dg .lks{fill:none;stroke:var(--lock);stroke-width:2.25;stroke-linecap:round}
+.dg .lks.big{stroke-width:3.5}
+.dg .st{fill:var(--lock);opacity:.2}
+.dg .tunbg{fill:var(--surface)}
+.dg .ciph{fill:var(--lock);letter-spacing:.06em}
+.dg .rack{fill:var(--surface);stroke:var(--res);stroke-width:1.5}
+.dg .led{fill:var(--res)}
+.dg .db{fill:var(--surface);stroke:var(--res);stroke-width:1.5}
+.dg .db.mine{stroke:var(--cdp)}
+.dg .rdot{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.5}
+.dg .ok{fill:var(--res)}
+.dg .chk{fill:none;stroke:var(--surface);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.dg .bad{fill:var(--raw)}
+.dg .xx{fill:none;stroke:var(--surface);stroke-width:1.75;stroke-linecap:round}
+.dg .tag-res{fill:var(--res-bg);stroke:var(--res);stroke-width:1}
+.dg .tag-raw{fill:var(--raw-bg);stroke:var(--raw);stroke-width:1}
+.dg .port{fill:var(--surface);stroke:var(--cdp);stroke-width:1.5}
+.dg .pill-cdp{fill:var(--surface);stroke:var(--cdp);stroke-width:1.25}
+.dg .pill-raw{fill:var(--surface);stroke:var(--raw);stroke-width:1.25}
+.dg .pill-req{fill:var(--surface);stroke:var(--req);stroke-width:1.25}
+.dg .solid-cdp{fill:var(--cdp)}
+.dg .solid-res{fill:var(--res)}
+.dg .solid-raw{fill:var(--raw)}
+.dg .mod{fill:var(--cdp-bg)}
+.dg .hlrow{fill:var(--cdp);fill-opacity:.16;stroke:var(--cdp);stroke-width:1}
+.dg .guard{fill:none;stroke:var(--cdp);stroke-width:1.75;stroke-dasharray:6 4}
+.dg .strike{fill:none;stroke:var(--ink-3);stroke-width:1.25}
+.dg .old{fill:var(--ink-3)}
+.dg .bul{fill:var(--cdp)}
+
+/* 누를 수 있는 상자: 사용자 = 기본 접속, 오른쪽 아래 세 상자 = CDP 재생 */
+.dg .hot{cursor:pointer;outline:none}
+.dg .hot .hot-box{transition:stroke-width .15s}
+.dg .hot:hover .hot-box,.dg .hot:focus-visible .hot-box{stroke-width:3}
+.dg .hot-dot{fill:var(--req);stroke:var(--surface);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:k-hint 1.6s ease-in-out .8s 3}
+.dg .hot.cdp .hot-dot{fill:var(--cdp)}
+.dg .hot.raw .hot-dot{fill:var(--raw)}
+.dg .hot-tri{fill:var(--surface);pointer-events:none}
+@keyframes k-hint{50%{transform:scale(1.3)}}
+
+/* 재생마다 바뀌는 자리.
+   .v = 재생 종류에 따라 갈아 끼우는 묶음 (v-rest 재생 전 · v-plain 기본 접속 · v-mod 응답 고치기 · v-col 수집 · v-login 자동 로그인 · v-raw 일반 스크립트)
+   .v-cdp = CDP 연결 표시. 일반 스크립트 재생에서는 크롬에 붙지 않으므로 감춘다
+   일반 스크립트 재생에서는 위 왼쪽 구역이 크롬이 아니라 스크립트 자신이므로 바탕을 호박색으로 바꾼다 (g-br · g-cdp)
+   .sc-search / .sc-login / .sc-script = 화면 · 메시지 · 서버 처리의 내용 (검색 장면 / 로그인 장면 / 브라우저 없는 스크립트 장면)
+   .sc-br = 브라우저 장면에만 있는 것 (검색 · 로그인 공통). 스크립트 장면에서는 감춘다 */
+.dg .v{display:none}
+.dg[data-mode="rest"] .v-rest,.dg[data-mode="plain"] .v-plain,.dg[data-mode="mod"] .v-mod,.dg[data-mode="col"] .v-col,.dg[data-mode="login"] .v-login,.dg[data-mode="raw"] .v-raw{display:inline}
+.dg[data-mode="raw"] .v-cdp{display:none}
+.dg[data-mode="raw"] .g-cdp,.dg[data-mode="raw"] .g-br{fill:var(--raw-bg);stroke:var(--raw)}
+.dg[data-mode="raw"] .lbg,.dg[data-mode="raw"] .ldot{stroke:var(--raw)}
+.dg[data-mode="raw"] .lrow.now .ldot,.dg[data-mode="raw"] .lrow.past .ldot{fill:var(--raw)}
+.dg[data-sc="search"] .sc-login,.dg[data-sc="login"] .sc-search,
+.dg[data-sc="script"] .sc-search,.dg[data-sc="script"] .sc-login,.dg[data-sc="script"] .sc-br,
+.dg:not([data-sc="script"]) .sc-script{display:none}
+
+/* 재생 상태. 스크립트가 [data-s] 요소마다 rest(재생 전) · next(아직) · now(지금 단계) · past(지난 단계) · off(이 재생에 없음)를 붙인다.
+   .rev = 재생 전에도 보이는 내용. 재생 중에는 제 단계에서 나타난다.
+   .fx  = 재생 중에만 보이는 표시. 제 단계에서 나타나 끝까지 남는다. 지나가는 표시(.ring · .flow · .tok)는 .fx 묶음 안에 둔다.
+   '동작 줄이기' 설정으로 재생을 끄지 않는다. 원격 데스크톱 세션은 그 설정이 기본으로 켜져 있어서, 끄는 규칙을 두면 통째로 움직이지 않는다.
+   재생은 모두 눌러서 시작한다 */
+.dg .fx{opacity:0;visibility:hidden}
+.dg .fx.now,.dg .fx.past{opacity:1;visibility:visible}
+.dg .rev.next,.dg .rev.off{opacity:0;visibility:hidden}
+.dg.playing[data-mode="mod"] .orig{visibility:hidden}
+.dg .zone{transition:opacity .35s ease}
+.dg.playing .zone.dim{opacity:.4}
+.dg .ring{fill:none;stroke-width:3;opacity:0}
+.dg .flow{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:.3 1;stroke-dashoffset:.3;opacity:0}
+.dg .tok{opacity:0}
+.dg .s-ink{stroke:var(--line-strong)}
+.dg .s-req{stroke:var(--req)}
+.dg .s-res{stroke:var(--res)}
+.dg .s-cdp{stroke:var(--cdp)}
+.dg .s-lock{stroke:var(--lock)}
+.dg .s-raw{stroke:var(--raw)}
+.dg .tk-req{fill:var(--req)}
+.dg .tk-res{fill:var(--res)}
+.dg .tk-cdp{fill:var(--cdp)}
+.dg .tk-lock{fill:var(--lock)}
+.dg .tkt{font-size:11px;font-weight:600;fill:var(--surface);text-anchor:middle}
+.dg .tkm{font-family:var(--mono);font-size:10.5px;fill:var(--surface)}
+.dg .tkl{fill:none;stroke:var(--surface);stroke-width:1.5;stroke-linecap:round}
+.dg .now.a-in,.dg .now .a-in{animation:k-in .4s ease-out var(--d,0s) backwards}
+.dg .now.a-snap,.dg .now .a-snap{animation:k-in .01s linear var(--d,0s) backwards}
+.dg .now.a-up,.dg .now .a-up{animation:k-up .5s cubic-bezier(.2,.7,.2,1) var(--d,0s) backwards}
+.dg .now.a-pop,.dg .now .a-pop{animation:k-pop .45s cubic-bezier(.3,1.4,.5,1) var(--d,0s) backwards;transform-box:fill-box;transform-origin:center}
+.dg .now.a-type,.dg .now .a-type{animation:k-type .7s steps(14,end) var(--d,0s) backwards}
+.dg .now .a-ring{animation:k-ring 1.3s ease-out var(--d,0s) both}
+.dg .now .a-flow{animation:k-flow var(--t,1s) cubic-bezier(.4,0,.6,1) var(--d,0s) both}
+.dg .now .a-move{animation:k-move var(--t,1s) cubic-bezier(.45,0,.55,1) var(--d,0s) both}
+@keyframes k-in{from{opacity:0}}
+@keyframes k-up{from{opacity:0;transform:translateY(8px)}}
+@keyframes k-pop{from{opacity:0;transform:scale(.85)}}
+@keyframes k-type{0%{opacity:0;clip-path:inset(-6px 100% -6px -2px)}2%{opacity:1;clip-path:inset(-6px 100% -6px -2px)}100%{opacity:1;clip-path:inset(-6px -2px -6px -2px)}}
+@keyframes k-ring{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+@keyframes k-flow{0%{opacity:0;stroke-dashoffset:.3}10%{opacity:1}90%{opacity:1}100%{opacity:0;stroke-dashoffset:-1}}
+@keyframes k-move{0%{opacity:0;transform:translate(var(--x0),var(--y0))}10%{opacity:1}90%{opacity:1}100%{opacity:0;transform:translate(var(--x1),var(--y1))}}
+
+/* CDP 명령 줄: 재생 중에는 지금 줄만 밝아지고, 지난 줄은 점이 채워진다 */
+.dg .lrow{transition:opacity .3s}
+.dg .lrow.next,.dg .lrow.off{opacity:.4}
+.dg .lbg{fill:var(--surface);stroke:var(--cdp);stroke-width:1.25;opacity:0;transition:opacity .3s}
+.dg .lrow.now .lbg{opacity:1}
+.dg .ldot{fill:var(--surface);stroke:var(--cdp);stroke-width:1.5}
+.dg .lrow.now .ldot,.dg .lrow.past .ldot{fill:var(--cdp)}
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1>웹 서버 접속과 CDP 제어</h1>
+  <p class="eyebrow">HTTP 요청 · 응답 · Chrome DevTools Protocol</p>
+  <div class="tools">
+    <button class="btn" id="side-t" type="button" aria-expanded="false" aria-controls="side">자세히 보기</button>
+    <button class="btn" id="fs" type="button">전체 화면</button>
+  </div>
+</header>
+
+<main class="stage">
+  <figure class="fig">
+    <div class="scroll">
+      <svg id="dg" class="dg" data-mode="rest" data-sc="search" viewBox="0 0 1600 880" role="img" aria-label="사용자가 브라우저에서 검색하면 브라우저가 HTTP 요청을 만들어 HTTPS로 서버에 보내고, 서버가 처리해 HTTP 응답을 돌려주며, 브라우저가 그 응답을 화면에 표시하는 흐름. CDP 클라이언트는 브라우저의 디버깅 포트에 붙어, 복호화가 끝난 응답을 멈춰 고치거나, 읽어서 자기 DB에 저장하거나, 보관해 둔 로그인 정보를 대신 입력해 로그인할 수 있다. 일반 스크립트 재생은 크롬을 거치지 않고 스크립트가 서버에 직접 요청을 보내면 TLS 지문, 헤더, 쿠키가 크롬과 달라 서버가 거절하는 과정을 CDP와 비교해 보여 준다.">
+        <defs>
+          <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-ink" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-req" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-req" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-res" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-res" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-cdp" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-cdp" d="M0 0L10 5L0 10z"/></marker>
+          <marker id="a-raw" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-raw" d="M0 0L10 5L0 10z"/></marker>
+          <pattern id="stripe" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="st" width="4" height="10"/></pattern>
+        </defs>
+
+        <!-- 구역 바탕: 브라우저 · 인터넷 · 웹 서버. 일반 스크립트 재생에서는 왼쪽 구역이 브라우저가 아니라 스크립트 자신이 된다 -->
+        <rect class="g-br" x="192" y="52" width="668" height="616" rx="16"/>
+        <rect class="g-net" x="884" y="52" width="196" height="616" rx="16"/>
+        <rect class="g-sv" x="1104" y="52" width="480" height="616" rx="16"/>
+        <text class="t k-req sc-br" x="212" y="80">브라우저 (Chrome)</text>
+        <text class="x sc-br" x="346" y="80">화면 · HTTP 메시지 · 네트워크 스택</text>
+        <g class="sc-br">
+          <rect class="pill-req" x="730" y="66" width="118" height="20" rx="10"/>
+          <text class="lb b6 k-req c" x="789" y="80">요청은 크롬이 보낸다</text>
+        </g>
+        <text class="t k-raw sc-script" x="212" y="80">일반 스크립트 (Python requests)</text>
+        <text class="x sc-script" x="452" y="80">크롬을 거치지 않는다 · 직접 만들어 직접 보낸다</text>
+        <g class="sc-script">
+          <rect class="pill-raw" x="730" y="66" width="118" height="20" rx="10"/>
+          <text class="lb b6 k-raw c" x="789" y="80">크롬 없음 · 직접 보낸다</text>
+        </g>
+        <text class="t k-lock" x="904" y="80">인터넷</text>
+        <text class="x" x="952" y="80">HTTPS 구간</text>
+        <text class="t k-res" x="1124" y="80">웹 서버</text>
+        <text class="m" x="1184" y="80">www.example.com</text>
+
+        <!-- 요청 · 응답이 지나는 길 -->
+        <path class="ln req" d="M452 202H474" marker-end="url(#a-req)"/>
+        <path class="ln req" d="M756 202H784" marker-end="url(#a-req)"/>
+        <path class="ln req" d="M842 202H885"/>
+        <path class="ln req" d="M1079 202H1122" marker-end="url(#a-req)"/>
+        <path class="ln res" d="M1124 538H1079"/>
+        <path class="ln res" d="M885 538H844" marker-end="url(#a-res)"/>
+        <path class="ln res" d="M786 538H758" marker-end="url(#a-res)"/>
+        <path class="ln res" d="M476 538H454" marker-end="url(#a-res)"/>
+
+        <!-- 1 사용자 (누르면 기본 접속 재생) -->
+        <g class="zone" data-z="s1">
+          <g id="hot-plain" class="hot" tabindex="0" role="button" aria-label="기본 접속: CDP 없이 요청과 응답이 오가는 과정을 한 단계씩 재생">
+            <rect class="card hot-box" x="16" y="96" width="160" height="232" rx="12"/>
+            <circle class="badge" cx="38" cy="118" r="12"/><text class="bn" x="38" y="122.5">1</text>
+            <text class="t" x="58" y="123">사용자</text>
+            <circle class="fig-skin" cx="96" cy="168" r="19"/>
+            <path class="fig-body" d="M58 240c0-22 17-38 38-38s38 16 38 38v8H58Z"/>
+            <rect class="fig-dev" x="60" y="230" width="72" height="40" rx="4"/>
+            <rect class="fig-dev" x="48" y="270" width="96" height="7" rx="3.5"/>
+            <text class="s c" x="96" y="298">검색어를 입력하고</text>
+            <text class="s c" x="96" y="315">검색 버튼을 누른다</text>
+            <circle class="hot-dot" cx="176" cy="96" r="10"/>
+            <path class="hot-tri" d="M173 91.5L180.5 96L173 100.5Z"/>
+          </g>
+          <path class="ln" d="M132 250H186V154H210" marker-end="url(#a-ink)"/>
+        </g>
+
+        <!-- 범례 -->
+        <text class="t" x="16" y="368">범례</text>
+        <path class="ln req" d="M16 388H44" marker-end="url(#a-req)"/>
+        <text class="x" x="56" y="392">요청</text>
+        <path class="ln res" d="M46 410H18" marker-end="url(#a-res)"/>
+        <text class="x" x="56" y="414">응답</text>
+        <rect class="tunbg" x="16" y="425" width="30" height="14"/>
+        <rect x="16" y="425" width="30" height="14" fill="url(#stripe)"/>
+        <path class="ln lock" d="M16 425H46M16 439H46"/>
+        <text class="x" x="56" y="436">암호화된 구간</text>
+        <path class="ln cdp dash" d="M16 454H46"/>
+        <text class="x" x="56" y="458">CDP 연결 (WebSocket)</text>
+        <rect class="mod" x="16" y="469" width="30" height="14" rx="4"/>
+        <text class="x" x="56" y="480">CDP가 손댄 값</text>
+
+        <!-- 일반 스크립트와 비교 (누르면 일반 스크립트 재생). 크롬을 거치지 않고 서버에 직접 보내면 서버가 거절할 수 있다 -->
+        <g class="zone" data-z="r0 r6">
+          <g id="hot-raw" class="hot raw" tabindex="0" role="button" aria-label="일반 스크립트 접속: 크롬을 거치지 않고 스크립트가 서버에 직접 요청을 보내고 서버가 거절하는 과정을 CDP와 비교해 한 단계씩 재생">
+            <rect class="card raw hot-box" x="16" y="508" width="160" height="148" rx="12"/>
+            <text class="t k-raw" x="30" y="534">일반 스크립트</text>
+            <rect class="cell" x="30" y="546" width="132" height="40" rx="6"/>
+            <text class="m k-raw" x="38" y="562">$ python fetch.py</text>
+            <text class="m" x="38" y="577">requests.get(url)</text>
+            <text class="x" x="30" y="602">크롬을 거치지 않고</text>
+            <text class="x" x="30" y="617">서버에 직접 보낸다</text>
+            <text class="x" x="30" y="632">서버가 거절할 수 있다</text>
+            <text class="lb b6 k-raw" x="30" y="648">CDP와 무엇이 다른가</text>
+            <circle class="hot-dot" cx="176" cy="508" r="10"/>
+            <path class="hot-tri" d="M173 503.5L180.5 508L173 512.5Z"/>
+          </g>
+        </g>
+
+        <!-- CDP 재생에서는 사용자가 직접 하지 않는다. 처음부터 끝까지 스크립트가 대신 조작한다 -->
+        <g class="fx a-in" data-m="mod col login" data-s="c0" data-s-login="l0" style="--d:.3s">
+          <rect class="tunbg" x="22" y="284" width="148" height="38"/>
+          <text class="s b6 k-cdp c" x="96" y="298">직접 하지 않는다</text>
+          <text class="s k-cdp c" x="96" y="315">스크립트가 대신한다</text>
+          <path class="ln cdp" d="M180 196l12 12M192 196l-12 12"/>
+        </g>
+        <!-- 일반 스크립트 재생: 사용자 상자를 '누가 서버에 보내는가' 경로 비교로 덮는다.
+             크롬 + CDP = 스크립트 → 크롬 → 서버 (크롬이 보낸다) / 일반 스크립트 = 스크립트 → 서버 (크롬을 거치지 않는다) -->
+        <g class="fx a-in" data-m="raw" data-s="r0" style="--d:.3s">
+          <circle class="w" cx="176" cy="96" r="11"/>
+          <rect class="card raw" x="16" y="96" width="160" height="232" rx="12"/>
+          <text class="t k-raw" x="30" y="121">누가 서버에 보내는가</text>
+          <text class="lb b6 k-cdp c" x="57" y="143">크롬 + CDP</text>
+          <rect class="cell cdp" x="24" y="150" width="66" height="20" rx="5"/>
+          <text class="lb b6 ink c" x="57" y="164">스크립트</text>
+          <path class="ln cdp dash" d="M57 170V188" marker-end="url(#a-cdp)"/>
+          <text class="lb k-cdp" x="62" y="183">CDP</text>
+          <rect class="cell req" x="24" y="190" width="66" height="20" rx="5"/>
+          <text class="lb b6 ink c" x="57" y="204">크롬</text>
+          <path class="ln req" d="M57 210V228" marker-end="url(#a-req)"/>
+          <text class="lb k-req" x="62" y="223">HTTPS</text>
+          <rect class="cell res" x="24" y="230" width="66" height="20" rx="5"/>
+          <text class="lb b6 ink c" x="57" y="244">서버</text>
+          <text class="lb b6 k-req c" x="57" y="268">크롬이 보낸다</text>
+          <text class="lb b6 k-raw c" x="135" y="143">일반 스크립트</text>
+          <rect class="cell raw" x="102" y="150" width="66" height="20" rx="5"/>
+          <text class="lb b6 ink c" x="135" y="164">스크립트</text>
+          <path class="ln raw" d="M135 170V228" marker-end="url(#a-raw)"/>
+          <rect class="pill-raw" x="106" y="192" width="58" height="16" rx="8"/>
+          <text class="lb b6 k-raw c" x="135" y="204">크롬 없음</text>
+          <text class="lb k-raw" x="140" y="223">HTTPS</text>
+          <rect class="cell res" x="102" y="230" width="66" height="20" rx="5"/>
+          <text class="lb b6 ink c" x="135" y="244">서버</text>
+          <text class="lb b6 k-raw c" x="135" y="268">직접 보낸다</text>
+          <text class="x c" x="96" y="298">사용자도 브라우저도 없다</text>
+          <text class="x c" x="96" y="314">CDP 포트도 쓰지 않는다</text>
+          <path class="ln raw" d="M180 196l12 12M192 196l-12 12"/>
+        </g>
+
+        <!-- 화면: 검색 장면은 1 검색 입력 · 6 결과 표시, 로그인 장면은 CDP 가 넣는 로그인 폼 · 6 로그인된 화면 -->
+        <g class="zone" data-z="s1 s6 a1 l1 l2 l3 l4 r0">
+          <rect class="card" x="212" y="96" width="240" height="556" rx="10"/>
+          <path class="band" d="M213 124V106a9 9 0 0 1 9-9H442a9 9 0 0 1 9 9V124Z"/>
+          <circle class="badge" cx="230" cy="110.5" r="10.5"/><text class="bn" x="230" y="114.8">6</text>
+          <circle class="dotc" cx="251" cy="110.5" r="3.5"/>
+          <circle class="dotc" cx="262" cy="110.5" r="3.5"/>
+          <circle class="dotc" cx="273" cy="110.5" r="3.5"/>
+          <rect class="pill" x="286" y="101.5" width="156" height="18" rx="9"/>
+          <text class="m sc-search" x="296" y="114.5">www.example.com</text>
+          <text class="m sc-login" x="296" y="114.5">www.example.com/login</text>
+          <text class="m sc-script" x="296" y="114.5">python fetch.py</text>
+
+          <g class="sc-search">
+            <rect class="field" x="226" y="138" width="150" height="32" rx="6"/>
+            <text class="s ink rev a-type" data-s="s1" data-s-mod="a1" data-s-col="a1" style="--d:.6s" x="238" y="158.5">아이폰</text>
+            <text class="lb b6 k-cdp e fx a-in" data-m="mod col" data-s="a1" style="--d:1.3s" x="370" y="158.5">CDP가 입력</text>
+            <rect class="btnq" x="384" y="138" width="54" height="32" rx="6"/>
+            <text class="w c b6" x="411" y="158.5">검색</text>
+            <g class="fx" data-s="s1"><rect class="ring s-req a-ring" style="--d:1.3s" x="380" y="134" width="62" height="40" rx="9"/></g>
+            <g class="fx" data-m="mod col" data-s="a1"><rect class="ring s-cdp a-ring" style="--d:2s" x="380" y="134" width="62" height="40" rx="9"/></g>
+            <path class="cur fx a-pop" data-m="mod col" data-s="a1" data-until="s6" style="--d:1.7s" d="M418 152v16l4.4-3.600 3.200 7 2.400-1.100-3.200-6.900 5.800-.400Z"/>
+            <path class="ln thin" d="M226 180H438"/>
+            <text class="x c fx a-in" data-s="s1" data-s-mod="a1" data-s-col="a1" data-until="s6" style="--d:2.2s" x="332" y="410">응답을 기다리는 중…</text>
+
+            <g class="rev a-up" data-s="s6" style="--d:1.3s">
+              <rect class="cell" x="224" y="190" width="216" height="106" rx="8"/>
+              <rect class="ph p1" x="236" y="202" width="50" height="82" rx="8"/><rect class="phs" x="241" y="210" width="40" height="60" rx="3"/>
+              <text class="t" x="300" y="232">iPhone 15</text>
+              <text class="num orig" x="300" y="258">1,250,000원</text>
+            </g>
+            <g class="fx a-in" data-m="mod" data-s="s6" style="--d:1.3s">
+              <rect class="mod" x="296" y="241" width="134" height="24" rx="5"/>
+              <text class="num k-cdp" x="302" y="258">990,000원</text>
+              <text class="lb b6 k-cdp" x="300" y="282">CDP가 고친 값</text>
+            </g>
+            <g class="rev a-up" data-s="s6" style="--d:1.5s">
+              <rect class="cell" x="224" y="306" width="216" height="106" rx="8"/>
+              <rect class="ph p2" x="236" y="318" width="50" height="82" rx="8"/><rect class="phs" x="241" y="326" width="40" height="60" rx="3"/>
+              <text class="t" x="300" y="348">iPhone 15 Pro</text>
+              <text class="num" x="300" y="374">1,550,000원</text>
+            </g>
+            <g class="rev a-up" data-s="s6" style="--d:1.7s">
+              <rect class="cell" x="224" y="422" width="216" height="106" rx="8"/>
+              <rect class="ph p3" x="236" y="434" width="50" height="82" rx="8"/><rect class="phs" x="241" y="442" width="40" height="60" rx="3"/>
+              <text class="t" x="300" y="464">Galaxy S24</text>
+              <text class="num" x="300" y="490">1,200,000원</text>
+            </g>
+            <g class="rev a-up" data-s="s6" style="--d:1.9s">
+              <rect class="cell" x="224" y="538" width="216" height="106" rx="8"/>
+              <rect class="ph p4" x="236" y="550" width="50" height="82" rx="8"/><rect class="phs" x="241" y="558" width="40" height="60" rx="3"/>
+              <text class="t" x="300" y="580">iPhone 14</text>
+              <text class="num" x="300" y="606">1,000,000원</text>
+            </g>
+          </g>
+
+          <g class="sc-login">
+            <!-- 로그인 폼: 응답이 오기 전까지 보인다 -->
+            <g class="fx" data-s="l0" data-until="s6">
+              <text class="h2 c" x="332" y="200">로그인</text>
+              <text class="x c" x="332" y="220">www.example.com 계정</text>
+              <text class="lb" x="236" y="252">아이디</text>
+              <rect class="field" x="236" y="258" width="192" height="34" rx="6"/>
+              <text class="lb" x="236" y="316">비밀번호</text>
+              <rect class="field" x="236" y="322" width="192" height="34" rx="6"/>
+              <rect class="btnq" x="236" y="378" width="192" height="38" rx="8"/>
+              <text class="w c b6" x="332" y="402">로그인</text>
+            </g>
+            <g class="fx" data-s="l1"><rect class="ring s-cdp a-ring" style="--d:.5s" x="232" y="254" width="200" height="42" rx="9"/></g>
+            <text class="s ink fx a-type" data-s="l1" data-until="s6" style="--d:.9s" x="248" y="279.5">hong</text>
+            <text class="lb b6 k-cdp e fx a-in" data-s="l1" data-until="s6" style="--d:1.6s" x="428" y="252">CDP가 입력</text>
+            <g class="fx" data-s="l2"><rect class="ring s-cdp a-ring" style="--d:.5s" x="232" y="318" width="200" height="42" rx="9"/></g>
+            <text class="s ink fx a-type" data-s="l2" data-until="s6" style="--d:.9s" x="248" y="343.5">••••••••</text>
+            <text class="lb b6 k-cdp e fx a-in" data-s="l2" data-until="s6" style="--d:1.6s" x="428" y="316">CDP가 입력</text>
+            <g class="fx" data-s="l3"><rect class="ring s-cdp a-ring" style="--d:.9s" x="232" y="374" width="200" height="46" rx="11"/></g>
+            <path class="cur fx a-pop" data-s="l3" data-until="s6" style="--d:.6s" d="M392 396v16l4.4-3.6 3.2 7 2.4-1.1-3.2-6.9 5.8-.4Z"/>
+            <text class="lb b6 k-cdp c fx a-in" data-s="l3" data-until="s6" style="--d:1.3s" x="332" y="436">CDP가 클릭</text>
+            <text class="x c fx a-in" data-s="l3" data-until="s6" style="--d:1.9s" x="332" y="500">응답을 기다리는 중…</text>
+            <!-- 로그인된 화면 -->
+            <g class="fx a-up" data-s="s6" style="--d:1.3s">
+              <circle class="av" cx="332" cy="212" r="32"/>
+              <circle class="avl" cx="332" cy="203" r="10"/>
+              <path class="avl" d="M313 232c2-9.500 9.500-15 19-15s17 5.500 19 15"/>
+              <text class="h2 c" x="332" y="282">홍길동 님</text>
+              <text class="s c" x="332" y="304">로그인되었습니다</text>
+              <rect class="tag-res" x="262" y="318" width="140" height="24" rx="12"/>
+              <text class="lb c b6 k-res" x="332" y="334">세션 쿠키 저장됨</text>
+              <rect class="cell" x="236" y="366" width="192" height="40" rx="8"/><text class="s ink" x="252" y="390">내 정보</text>
+              <rect class="cell" x="236" y="416" width="192" height="40" rx="8"/><text class="s ink" x="252" y="440">주문 내역</text>
+              <rect class="cell" x="236" y="466" width="192" height="40" rx="8"/><text class="s ink" x="252" y="490">로그아웃</text>
+            </g>
+            <rect class="hlrow fx a-in" data-s="l4" style="--d:.9s" x="266" y="264" width="132" height="26" rx="5"/>
+            <text class="lb b6 k-cdp c fx a-in" data-s="l4" style="--d:1.3s" x="332" y="258">CDP가 읽어 확인</text>
+          </g>
+
+          <g class="sc-script">
+            <!-- 터미널: 화면이 없다. 스크립트가 보낸 것과 받은 것이 글자로만 남는다 -->
+            <rect class="cell" x="224" y="136" width="216" height="508" rx="8"/>
+            <text class="m ink fx a-in" data-s="r0" style="--d:.6s" x="236" y="160">$ python fetch.py</text>
+            <g class="fx a-in" data-s="s2" style="--d:.4s">
+              <text class="m ink" x="236" y="186">GET https://www.example.com</text>
+              <text class="m ink" x="252" y="201">/search?q=아이폰</text>
+              <text class="m" x="236" y="222">UA: python-requests/2.32</text>
+              <text class="m k-raw" x="236" y="237">쿠키 없음 · JS 토큰 없음</text>
+            </g>
+            <text class="m fx a-in" data-s="s3" style="--d:.5s" x="236" y="264">TLS 악수 … OpenSSL (파이썬)</text>
+            <text class="x fx a-in" data-s="s3" data-until="s6" style="--d:1.2s" x="236" y="292">응답을 기다리는 중…</text>
+            <g class="fx a-in" data-s="s6" style="--d:1.3s">
+              <text class="mb k-raw" x="236" y="292">← HTTP/1.1 403 Forbidden</text>
+              <text class="m ink" x="236" y="312">&lt;h1&gt;Access denied&lt;/h1&gt;</text>
+              <text class="m" x="236" y="327">자동화된 요청으로 판단되어</text>
+              <text class="m" x="236" y="342">접속을 거절했습니다.</text>
+            </g>
+            <g class="fx a-pop" data-s="s6" style="--d:2s">
+              <rect class="solid-raw" x="272" y="372" width="120" height="32" rx="16"/>
+              <text class="w c b6" x="332" y="393">거절 · 403</text>
+            </g>
+            <g class="fx a-in" data-s="s6" style="--d:2.5s">
+              <text class="x c" x="332" y="440">화면이 없다. 코드는</text>
+              <text class="x c" x="332" y="456">거절 응답 한 줄만 받는다</text>
+              <text class="x c" x="332" y="488">검색 결과 0건</text>
+              <text class="x c" x="332" y="504">세션 쿠키 없음</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- 2 HTTP 요청 메시지 -->
+        <g class="zone" data-z="s2 s3">
+          <rect class="card req" x="476" y="96" width="280" height="212" rx="10"/>
+          <circle class="badge" cx="496" cy="118" r="12"/><text class="bn" x="496" y="122.5">2</text>
+          <text class="t" x="516" y="123">HTTP 요청 메시지</text>
+          <g class="sc-br">
+            <rect class="pill-req" x="664" y="108" width="80" height="20" rx="10"/>
+            <text class="lb b6 k-req c" x="704" y="122">크롬이 만든다</text>
+          </g>
+          <g class="sc-script">
+            <rect class="pill-raw" x="646" y="108" width="98" height="20" rx="10"/>
+            <text class="lb b6 k-raw c" x="695" y="122">스크립트가 만든다</text>
+          </g>
+          <g class="sc-search">
+            <g class="rev a-up" data-s="s2" style="--d:.3s">
+              <text class="lb" x="488" y="146"><tspan class="b6 k-req">요청 라인</tspan> 무엇을 요청하는가</text>
+              <rect class="cell req" x="488" y="151" width="256" height="24" rx="5"/>
+              <text class="mb" x="497" y="167">GET /search?q=아이폰 HTTP/1.1</text>
+            </g>
+            <g class="rev a-up" data-s="s2" style="--d:.9s">
+              <text class="lb" x="488" y="193"><tspan class="b6 k-req">요청 헤더</tspan> 추가 정보</text>
+              <rect class="cell" x="488" y="198" width="256" height="64" rx="5"/>
+              <text class="m" x="497" y="213">Host: www.example.com</text>
+              <text class="m" x="497" y="227">Accept: application/json</text>
+              <text class="m" x="497" y="241">Accept-Language: ko-KR</text>
+              <text class="m" x="497" y="255">Cookie: sessionid=abc123</text>
+            </g>
+            <g class="rev a-up" data-s="s2" style="--d:1.5s">
+              <text class="lb" x="488" y="279"><tspan class="b6 k-req">요청 본문</tspan> 보내는 데이터</text>
+              <rect class="cell dashed" x="488" y="284" width="256" height="18" rx="5"/>
+              <text class="x c" x="616" y="297">없음 · GET 요청</text>
+            </g>
+          </g>
+          <g class="sc-login">
+            <g class="rev a-up" data-s="s2" style="--d:.3s">
+              <text class="lb" x="488" y="146"><tspan class="b6 k-req">요청 라인</tspan> 무엇을 요청하는가</text>
+              <rect class="cell req" x="488" y="151" width="256" height="24" rx="5"/>
+              <text class="mb" x="497" y="167">POST /login HTTP/1.1</text>
+            </g>
+            <g class="rev a-up" data-s="s2" style="--d:.9s">
+              <text class="lb" x="488" y="193"><tspan class="b6 k-req">요청 헤더</tspan> 추가 정보</text>
+              <rect class="cell" x="488" y="198" width="256" height="64" rx="5"/>
+              <text class="m" x="497" y="213">Host: www.example.com</text>
+              <text class="m" x="497" y="227">Content-Type: application/json</text>
+              <text class="m" x="497" y="241">Accept: application/json</text>
+              <text class="m" x="497" y="255">Content-Length: 38</text>
+            </g>
+            <g class="rev a-up" data-s="s2" style="--d:1.5s">
+              <text class="lb" x="488" y="279"><tspan class="b6 k-req">요청 본문</tspan> 아이디와 비밀번호</text>
+              <rect class="cell cdp" x="488" y="284" width="256" height="18" rx="5"/>
+              <text class="mb" x="497" y="297">{ "id": "hong", "pw": "••••••••" }</text>
+            </g>
+          </g>
+          <g class="sc-script">
+            <g class="rev a-up" data-s="s2" style="--d:.3s">
+              <text class="lb" x="488" y="146"><tspan class="b6 k-req">요청 라인</tspan> 크롬과 같다</text>
+              <rect class="cell req" x="488" y="151" width="256" height="24" rx="5"/>
+              <text class="mb" x="497" y="167">GET /search?q=아이폰 HTTP/1.1</text>
+            </g>
+            <g class="rev a-up" data-s="s2" style="--d:.9s">
+              <text class="lb" x="488" y="193"><tspan class="b6 k-req">요청 헤더</tspan> 스크립트가 적은 것만 있다</text>
+              <rect class="cell" x="488" y="198" width="256" height="64" rx="5"/>
+              <text class="m" x="497" y="213">Host: www.example.com</text>
+              <text class="mb k-raw" x="497" y="227">User-Agent: python-requests/2.32</text>
+              <text class="m" x="497" y="241">Accept: */*</text>
+              <text class="m k-raw" x="497" y="255">Cookie 없음 · sec-ch-ua 없음 · 토큰 없음</text>
+            </g>
+            <g class="rev a-up" data-s="s2" style="--d:1.5s">
+              <text class="lb" x="488" y="279"><tspan class="b6 k-req">요청 본문</tspan> 보내는 데이터</text>
+              <rect class="cell dashed" x="488" y="284" width="256" height="18" rx="5"/>
+              <text class="x c" x="616" y="297">없음 · GET 요청</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- 네트워크 스택: 나갈 때 암호화, 들어올 때 복호화 -->
+        <g class="zone" data-z="s3 s5 s6 c1">
+          <rect class="stack" x="780" y="96" width="68" height="556" rx="10"/>
+          <text class="lb c b6" x="814" y="118">네트워크</text>
+          <text class="lb c b6" x="814" y="132">스택</text>
+          <g class="sc-br">
+            <text class="lb c b6 k-req" x="814" y="150">크롬이</text>
+            <text class="lb c b6 k-req" x="814" y="163">보낸다</text>
+          </g>
+          <g class="sc-script">
+            <text class="lb c b6 k-raw" x="814" y="150">스크립트가</text>
+            <text class="lb c b6 k-raw" x="814" y="163">보낸다</text>
+          </g>
+          <path class="ln thin dash" d="M814 232V508"/>
+          <rect class="pill" x="797" y="361" width="34" height="18" rx="9"/>
+          <text class="m c" x="814" y="374">TLS</text>
+          <rect class="cell" x="786" y="174" width="56" height="56" rx="8"/>
+          <rect class="lk" x="805" y="192" width="18" height="14" rx="2.5"/>
+          <path class="lks" d="M809 192v-4a5 5 0 0 1 10 0v4"/>
+          <text class="lb c" x="814" y="222">암호화</text>
+          <rect class="cell" x="786" y="510" width="56" height="56" rx="8"/>
+          <rect class="lk" x="805" y="528" width="18" height="14" rx="2.5"/>
+          <path class="lks" d="M809 528v-6a5 5 0 0 1 10 0"/>
+          <text class="lb c" x="814" y="558">복호화</text>
+          <!-- TLS 악수를 누가 하는가: CDP 재생은 크롬, 일반 스크립트는 파이썬 OpenSSL -->
+          <g class="fx a-in" data-m="mod col login" data-s="s3" style="--d:.8s">
+            <rect class="tunbg" x="790" y="388" width="48" height="27"/>
+            <text class="lb c b6 k-res" x="814" y="398">크롬</text>
+            <text class="lb c b6 k-res" x="814" y="411">지문</text>
+          </g>
+          <g class="fx a-in" data-m="raw" data-s="s3" style="--d:.8s">
+            <rect class="tunbg" x="790" y="388" width="48" height="27"/>
+            <text class="lb c b6 k-raw" x="814" y="398">파이썬</text>
+            <text class="lb c b6 k-raw" x="814" y="411">OpenSSL</text>
+          </g>
+        </g>
+
+        <!-- 브라우저에 도착한 응답: 복호화가 끝나고 화면으로 가기 직전. CDP 가 멈추는 자리 -->
+        <g class="zone" data-z="s6 c0 c1 c2 c3 d1 d2">
+          <rect class="card res" x="476" y="424" width="280" height="228" rx="10"/>
+          <text class="t sc-br" x="490" y="448">브라우저에 도착한 응답</text>
+          <text class="lb sc-br" x="490" y="464">복호화가 끝난 평문 · 화면으로 가기 직전</text>
+          <text class="t sc-script" x="490" y="448">스크립트에 도착한 응답</text>
+          <text class="lb sc-script" x="490" y="464">복호화가 끝난 평문 · 코드가 받는 값</text>
+          <g class="sc-search">
+            <g class="rev a-up" data-s="s6" data-s-mod="c1" data-s-col="c1" style="--d:.5s">
+              <rect class="cell res" x="488" y="474" width="256" height="22" rx="5"/>
+              <text class="mb" x="497" y="489">HTTP/1.1 200 OK</text>
+              <text class="lb e" x="736" y="489">+ 헤더 4줄</text>
+              <rect class="cell" x="488" y="502" width="256" height="140" rx="5"/>
+              <text class="m" x="497" y="519">{ "keyword": "아이폰",</text>
+              <text class="m" x="510" y="534">"total": 1250,</text>
+              <text class="m" x="510" y="549">"items": [</text>
+              <text class="m" x="523" y="564">{ "id": 1,</text>
+              <text class="m" x="536" y="579">"name": "iPhone 15",</text>
+              <text class="m" x="536" y="594">"price": 1250000 },</text>
+              <text class="m" x="523" y="609">… 3개 더</text>
+              <text class="m" x="510" y="624">] }</text>
+            </g>
+            <!-- CDP: 관문을 걸어 둔다 → 멈춘다 → 읽는다 → (고쳐서 넘긴다 | DB 에 저장하고 그대로 넘긴다) -->
+            <rect class="guard fx a-in" data-m="mod col" data-s="c0" style="--d:1.4s" x="471" y="419" width="290" height="238" rx="14"/>
+            <g class="fx a-pop" data-m="mod col" data-s="c0" data-until="c1" style="--d:1.7s">
+              <rect class="pill-cdp" x="666" y="436" width="80" height="20" rx="10"/>
+              <text class="lb c b6 k-cdp" x="706" y="450">관문 설정</text>
+            </g>
+            <g class="fx a-pop" data-m="mod col" data-s="c1" data-until="c3" data-until-col="d2" style="--d:1.2s">
+              <rect class="solid-cdp" x="676" y="436" width="70" height="20" rx="10"/>
+              <rect class="w" x="688" y="441" width="3.5" height="10" rx="1"/><rect class="w" x="694.5" y="441" width="3.5" height="10" rx="1"/>
+              <text class="lb b6 w" x="705" y="450">멈춤</text>
+            </g>
+            <rect class="hlrow fx a-in" data-m="mod" data-s="c2" data-until="c3" style="--d:1s" x="492" y="583" width="248" height="15" rx="3"/>
+            <g class="fx a-snap" data-m="mod" data-s="c3" style="--d:1.2s">
+              <rect class="mod" x="492" y="583" width="248" height="15" rx="3"/>
+              <text class="m" x="536" y="594">"price":</text>
+              <text class="m old" x="595" y="594">1250000</text>
+              <path class="strike" d="M593 590.5H643"/>
+              <text class="mb k-cdp" x="650" y="594">990000</text>
+              <text class="m" x="695" y="594">},</text>
+            </g>
+            <g class="fx a-pop" data-m="mod" data-s="c3" style="--d:1.7s">
+              <rect class="solid-cdp" x="662" y="436" width="84" height="20" rx="10"/>
+              <text class="lb c b6 w" x="704" y="450">고쳐서 넘김</text>
+            </g>
+            <rect class="hlrow fx a-in" data-m="col" data-s="c2" data-until="d1" style="--d:1s" x="492" y="507" width="248" height="130" rx="4"/>
+            <rect class="hlrow fx a-in" data-m="col" data-s="d1" style="--d:.2s" x="492" y="568" width="248" height="30" rx="3"/>
+            <text class="lb b6 k-cdp e fx a-in" data-m="col" data-s="d1" style="--d:.5s" x="736" y="609">모델 · 가격을 뽑는다</text>
+            <g class="fx a-pop" data-m="col" data-s="d2" style="--d:.8s">
+              <rect class="solid-res" x="662" y="436" width="84" height="20" rx="10"/>
+              <text class="lb c b6 w" x="704" y="450">그대로 넘김</text>
+            </g>
+          </g>
+          <g class="sc-login">
+            <g class="rev a-up" data-s="s6" style="--d:.5s">
+              <rect class="cell res" x="488" y="474" width="256" height="22" rx="5"/>
+              <text class="mb" x="497" y="489">HTTP/1.1 200 OK</text>
+              <text class="lb e" x="736" y="489">+ 헤더 3줄</text>
+              <rect class="cell" x="488" y="502" width="256" height="140" rx="5"/>
+              <text class="mb k-res" x="497" y="520">Set-Cookie: sessionid=7f3a9c…</text>
+              <text class="m" x="497" y="540">{ "ok": true,</text>
+              <text class="m" x="510" y="555">"user": {</text>
+              <text class="m" x="523" y="570">"id": "hong",</text>
+              <text class="m" x="523" y="585">"name": "홍길동" } }</text>
+            </g>
+            <g class="fx a-pop" data-s="s6" style="--d:1.7s">
+              <rect class="tag-res" x="497" y="604" width="238" height="26" rx="6"/>
+              <text class="lb b6 k-res c" x="616" y="621">브라우저가 세션 쿠키를 저장한다</text>
+            </g>
+          </g>
+          <g class="sc-script">
+            <g class="rev a-up" data-s="s6" style="--d:.5s">
+              <rect class="cell raw" x="488" y="474" width="256" height="22" rx="5"/>
+              <text class="mb k-raw" x="497" y="489">HTTP/1.1 403 Forbidden</text>
+              <text class="lb e" x="736" y="489">+ 헤더 3줄</text>
+              <rect class="cell" x="488" y="502" width="256" height="140" rx="5"/>
+              <text class="m" x="497" y="520">&lt;h1&gt;Access denied&lt;/h1&gt;</text>
+              <text class="m" x="497" y="540">자동화된 요청으로 판단되어</text>
+              <text class="m" x="497" y="555">접속을 거절했습니다.</text>
+              <text class="m old" x="497" y="580">items: 없음</text>
+              <text class="m old" x="497" y="595">Set-Cookie: 없음</text>
+            </g>
+            <g class="fx a-pop" data-s="s6" style="--d:1.7s">
+              <rect class="tag-raw" x="497" y="604" width="238" height="26" rx="6"/>
+              <text class="lb b6 k-raw c" x="616" y="621">받은 것은 거절 한 줄뿐이다</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- 인터넷: 암호화된 채로 지나간다 -->
+        <g class="zone" data-z="s3 s5">
+          <circle class="badge" cx="906" cy="158" r="12"/><text class="bn" x="906" y="162.5">3</text>
+          <text class="s b6 ink" x="926" y="162.5">HTTPS로 보낸다</text>
+          <rect class="tunbg" x="885" y="184" width="194" height="36"/>
+          <rect x="885" y="184" width="194" height="36" fill="url(#stripe)"/>
+          <path class="ln lock" d="M885 184H1079M885 220H1079"/>
+          <text class="m c ciph" x="982" y="206">9f 3a c2 7e b1 04 d8</text>
+          <rect class="lk" x="964" y="326" width="36" height="28" rx="5"/>
+          <path class="lks big" d="M971 326v-9a11 11 0 0 1 22 0v9"/>
+          <text class="s c b6 ink" x="982" y="384">암호화된 채로 지나간다</text>
+          <text class="x c" x="982" y="404">길목에서는 내용이</text>
+          <text class="x c" x="982" y="420">보이지 않는다</text>
+          <rect class="tunbg" x="885" y="520" width="194" height="36"/>
+          <rect x="885" y="520" width="194" height="36" fill="url(#stripe)"/>
+          <path class="ln lock" d="M885 520H1079M885 556H1079"/>
+          <text class="m c ciph" x="982" y="542">5c e1 0b 77 a4 f2 6d</text>
+          <text class="x c" x="982" y="576">응답도 암호화되어 돌아온다</text>
+          <!-- TLS 악수는 암호화 전이라, 보낸 쪽의 지문이 서버에 보인다 -->
+          <g class="fx a-in" data-m="mod col login" data-s="s3" style="--d:1.4s">
+            <rect class="tag-res" x="892" y="440" width="180" height="42" rx="8"/>
+            <text class="lb b6 k-res c" x="982" y="458">TLS 악수도 크롬이 한다</text>
+            <text class="lb k-res c" x="982" y="473">지문이 크롬 그대로다</text>
+          </g>
+          <g class="fx a-in" data-m="raw" data-s="s3" style="--d:1.4s">
+            <rect class="tag-raw" x="892" y="440" width="180" height="56" rx="8"/>
+            <text class="lb b6 k-raw c" x="982" y="458">TLS 악수는 암호화 전이다</text>
+            <text class="lb k-raw c" x="982" y="473">암호 방식 목록 · 확장 순서가</text>
+            <text class="lb k-raw c" x="982" y="488">파이썬 지문(JA3)으로 보인다</text>
+          </g>
+        </g>
+
+        <!-- 4 서버가 요청을 처리한다 -->
+        <g class="zone" data-z="s4">
+          <circle class="badge" cx="1136" cy="150" r="12"/><text class="bn" x="1136" y="154.5">4</text>
+          <text class="t sc-search" x="1156" y="155">서버가 요청을 처리한다</text>
+          <text class="t sc-login" x="1156" y="155">서버가 로그인을 처리한다</text>
+          <text class="t sc-script" x="1156" y="155">서버가 요청을 거절한다</text>
+          <rect class="rack" x="1452" y="104" width="100" height="22" rx="5"/><circle class="led" cx="1466" cy="115" r="3"/><path class="ln thin" d="M1480 115H1540"/>
+          <rect class="rack" x="1452" y="130" width="100" height="22" rx="5"/><circle class="led" cx="1466" cy="141" r="3"/><path class="ln thin" d="M1480 141H1540"/>
+          <rect class="rack" x="1452" y="156" width="100" height="22" rx="5"/><circle class="led" cx="1466" cy="167" r="3"/><path class="ln thin" d="M1480 167H1540"/>
+          <path class="ln" d="M1142 202V378"/>
+          <rect class="cell" x="1124" y="185" width="280" height="34" rx="8"/><circle class="rdot" cx="1142" cy="202" r="7"/>
+          <rect class="cell" x="1124" y="229" width="280" height="34" rx="8"/><circle class="rdot" cx="1142" cy="246" r="7"/>
+          <rect class="cell" x="1124" y="273" width="280" height="34" rx="8"/><circle class="rdot" cx="1142" cy="290" r="7"/>
+          <rect class="cell" x="1124" y="317" width="280" height="34" rx="8"/><circle class="rdot" cx="1142" cy="334" r="7"/>
+          <rect class="cell" x="1124" y="361" width="280" height="34" rx="8"/><circle class="rdot" cx="1142" cy="378" r="7"/>
+          <g class="sc-search">
+            <text class="s ink b6" x="1158" y="206">요청 수신</text><text class="m e" x="1394" y="206">GET /search</text>
+            <text class="s ink b6" x="1158" y="250">인증 확인</text><text class="m e" x="1394" y="250">Cookie: sessionid</text>
+            <text class="s ink b6" x="1158" y="294">요청 데이터 검증</text><text class="m e" x="1394" y="294">q=아이폰</text>
+            <text class="s ink b6" x="1158" y="338">비즈니스 로직</text><text class="m e" x="1394" y="338">search("아이폰")</text>
+            <text class="s ink b6" x="1158" y="382">DB 조회</text><text class="m e" x="1394" y="382">SELECT … LIKE</text>
+            <path class="ln" d="M1404 378H1444"/>
+          </g>
+          <g class="sc-login">
+            <text class="s ink b6" x="1158" y="206">요청 수신</text><text class="m e" x="1394" y="206">POST /login</text>
+            <text class="s ink b6" x="1158" y="250">요청 데이터 검증</text><text class="m e" x="1394" y="250">id · pw 형식</text>
+            <text class="s ink b6" x="1158" y="294">계정 조회</text><text class="m e" x="1394" y="294">SELECT … WHERE id</text>
+            <text class="s ink b6" x="1158" y="338">비밀번호 대조</text><text class="m e" x="1394" y="338">해시 비교</text>
+            <text class="s ink b6" x="1158" y="382">세션 생성</text><text class="m e" x="1394" y="382">sessionid 발급</text>
+            <path class="ln" d="M1404 290H1500V332"/>
+          </g>
+          <g class="sc-script">
+            <text class="s ink b6" x="1158" y="206">요청 수신</text><text class="m e" x="1394" y="206">GET /search</text>
+            <text class="s ink b6" x="1158" y="250">접속 판별</text><text class="m e" x="1394" y="250">TLS 지문 · 헤더 · 쿠키</text>
+            <text class="s old b6" x="1158" y="294">인증 확인</text><text class="m e old" x="1394" y="294">건너뜀</text>
+            <text class="s old b6" x="1158" y="338">비즈니스 로직</text><text class="m e old" x="1394" y="338">건너뜀</text>
+            <text class="s old b6" x="1158" y="382">DB 조회</text><text class="m e old" x="1394" y="382">건너뜀</text>
+          </g>
+          <path class="db" d="M1444 344v44c0 7 25 12 56 12s56-5 56-12v-44Z"/>
+          <ellipse class="db" cx="1500" cy="344" rx="56" ry="12"/>
+          <text class="x c" x="1500" y="382">데이터베이스</text>
+          <!-- 재생: 다섯 단계를 차례로 통과한다 -->
+          <g class="fx" data-s="s4">
+            <rect class="ring s-res a-ring" style="--d:.3s" x="1120" y="181" width="288" height="42" rx="11"/>
+            <g class="sc-br">
+              <rect class="ring s-res a-ring" style="--d:.9s" x="1120" y="225" width="288" height="42" rx="11"/>
+              <rect class="ring s-res a-ring" style="--d:1.5s" x="1120" y="269" width="288" height="42" rx="11"/>
+              <rect class="ring s-res a-ring" style="--d:2.1s" x="1120" y="313" width="288" height="42" rx="11"/>
+              <rect class="ring s-res a-ring" style="--d:2.7s" x="1120" y="357" width="288" height="42" rx="11"/>
+            </g>
+            <g class="sc-search">
+              <path class="flow s-res a-flow" pathLength="1" style="--d:2.8s;--t:.6s" d="M1404 378H1444"/>
+              <ellipse class="ring s-res a-ring" style="--d:3.1s" cx="1500" cy="372" rx="62" ry="36"/>
+            </g>
+            <g class="sc-login">
+              <path class="flow s-res a-flow" pathLength="1" style="--d:1.6s;--t:.6s" d="M1404 290H1500V332"/>
+              <ellipse class="ring s-res a-ring" style="--d:1.9s" cx="1500" cy="372" rx="62" ry="36"/>
+            </g>
+            <g class="a-pop" style="--d:.4s"><circle class="ok" cx="1142" cy="202" r="8"/><path class="chk" d="M1138.3 202.4l2.6 2.6 4.9-5.8"/></g>
+            <g class="sc-br">
+              <g class="a-pop" style="--d:1s"><circle class="ok" cx="1142" cy="246" r="8"/><path class="chk" d="M1138.3 246.4l2.6 2.6 4.9-5.8"/></g>
+              <g class="a-pop" style="--d:1.6s"><circle class="ok" cx="1142" cy="290" r="8"/><path class="chk" d="M1138.3 290.4l2.6 2.6 4.9-5.8"/></g>
+              <g class="a-pop" style="--d:2.2s"><circle class="ok" cx="1142" cy="334" r="8"/><path class="chk" d="M1138.3 334.4l2.6 2.6 4.9-5.8"/></g>
+              <g class="a-pop" style="--d:3.3s"><circle class="ok" cx="1142" cy="378" r="8"/><path class="chk" d="M1138.3 378.4l2.6 2.6 4.9-5.8"/></g>
+            </g>
+            <!-- 일반 스크립트: 접속 판별에서 멈춘다. 그 아래 단계로 가지 않는다 -->
+            <g class="sc-script">
+              <rect class="ring s-raw a-ring" style="--d:.9s" x="1120" y="225" width="288" height="42" rx="11"/>
+              <g class="a-pop" style="--d:1s"><circle class="bad" cx="1142" cy="246" r="8"/><path class="xx" d="M1138.5 242.5l7 7M1145.5 242.5l-7 7"/></g>
+            </g>
+          </g>
+          <!-- 서버가 본 요청: CDP 재생에서는 크롬이 보낸 것과 같고, 일반 스크립트는 다르다 -->
+          <g class="fx a-pop" data-m="mod col login" data-s="s4" style="--d:3.6s">
+            <rect class="tag-res" x="1420" y="228" width="150" height="40" rx="8"/>
+            <text class="lb b6 k-res" x="1432" y="245">크롬이 보낸 요청과 같다</text>
+            <text class="lb k-res" x="1432" y="260">거절할 근거가 없다</text>
+          </g>
+          <g class="fx a-pop" data-m="raw" data-s="s4" style="--d:1.6s">
+            <rect class="tag-raw" x="1420" y="228" width="150" height="40" rx="8"/>
+            <text class="lb b6 k-raw" x="1432" y="245">크롬이 보낸 것과 다르다</text>
+            <text class="lb k-raw" x="1432" y="260">여기서 거절한다</text>
+          </g>
+        </g>
+
+        <!-- 5 HTTP 응답 메시지 (서버가 보낸 원본) -->
+        <g class="zone" data-z="s5">
+          <rect class="card res" x="1124" y="424" width="440" height="228" rx="10"/>
+          <circle class="badge" cx="1144" cy="446" r="12"/><text class="bn" x="1144" y="450.5">5</text>
+          <text class="t" x="1164" y="451">HTTP 응답 메시지</text>
+          <rect class="tag-res" x="1470" y="436" width="82" height="20" rx="10"/>
+          <text class="lb c b6 k-res" x="1511" y="450">서버 원본</text>
+          <g class="sc-search">
+            <g class="rev a-up" data-s="s5" style="--d:.2s">
+              <text class="lb" x="1136" y="474"><tspan class="b6 k-res">상태 라인</tspan> 처리 결과</text>
+              <rect class="cell res" x="1136" y="479" width="416" height="22" rx="5"/>
+              <text class="mb" x="1145" y="494">HTTP/1.1 200 OK</text>
+            </g>
+            <g class="rev a-up" data-s="s5" style="--d:.6s">
+              <text class="lb" x="1136" y="518"><tspan class="b6 k-res">응답 헤더</tspan> 응답 정보</text>
+              <rect class="cell" x="1136" y="523" width="416" height="36" rx="5"/>
+              <text class="m" x="1145" y="537">Content-Type: application/json</text>
+              <text class="m" x="1145" y="551">Content-Length: 1250</text>
+              <text class="m" x="1352" y="537">Set-Cookie: sessionid=abc123</text>
+              <text class="m" x="1352" y="551">Cache-Control: no-cache</text>
+            </g>
+            <g class="rev a-up" data-s="s5" style="--d:1s">
+              <text class="lb" x="1136" y="576"><tspan class="b6 k-res">응답 본문</tspan> 결과 데이터 (JSON)</text>
+              <rect class="cell" x="1136" y="581" width="416" height="62" rx="5"/>
+              <text class="m" x="1145" y="596">{ "keyword": "아이폰", "total": 1250, "items": [</text>
+              <text class="m" x="1171" y="610">{ "id": 1, "name": "iPhone 15",</text>
+              <text class="m" x="1184" y="624">"price": 1250000, "image": "https://…" },</text>
+              <text class="m" x="1171" y="638">… 3개 더 ] }</text>
+            </g>
+          </g>
+          <g class="sc-login">
+            <g class="rev a-up" data-s="s5" style="--d:.2s">
+              <text class="lb" x="1136" y="474"><tspan class="b6 k-res">상태 라인</tspan> 처리 결과</text>
+              <rect class="cell res" x="1136" y="479" width="416" height="22" rx="5"/>
+              <text class="mb" x="1145" y="494">HTTP/1.1 200 OK</text>
+            </g>
+            <g class="rev a-up" data-s="s5" style="--d:.6s">
+              <text class="lb" x="1136" y="518"><tspan class="b6 k-res">응답 헤더</tspan> 세션 쿠키가 실려 온다</text>
+              <rect class="cell" x="1136" y="523" width="416" height="36" rx="5"/>
+              <text class="m" x="1145" y="537">Content-Type: application/json</text>
+              <text class="m" x="1145" y="551">Cache-Control: no-store</text>
+              <text class="mb k-res" x="1352" y="537">Set-Cookie: sessionid=7f3a9c…</text>
+              <text class="m" x="1365" y="551">HttpOnly; Secure</text>
+            </g>
+            <g class="rev a-up" data-s="s5" style="--d:1s">
+              <text class="lb" x="1136" y="576"><tspan class="b6 k-res">응답 본문</tspan> 결과 데이터 (JSON)</text>
+              <rect class="cell" x="1136" y="581" width="416" height="62" rx="5"/>
+              <text class="m" x="1145" y="597">{ "ok": true,</text>
+              <text class="m" x="1158" y="612">"user": { "id": "hong", "name": "홍길동" } }</text>
+              <text class="x b6 k-res" x="1145" y="633">세션 쿠키가 로그인 상태를 증명한다</text>
+            </g>
+          </g>
+          <g class="sc-script">
+            <g class="rev a-up" data-s="s5" style="--d:.2s">
+              <text class="lb" x="1136" y="474"><tspan class="b6 k-res">상태 라인</tspan> 처리 결과</text>
+              <rect class="cell raw" x="1136" y="479" width="416" height="22" rx="5"/>
+              <text class="mb k-raw" x="1145" y="494">HTTP/1.1 403 Forbidden</text>
+            </g>
+            <g class="rev a-up" data-s="s5" style="--d:.6s">
+              <text class="lb" x="1136" y="518"><tspan class="b6 k-res">응답 헤더</tspan> 세션 쿠키는 주지 않는다</text>
+              <rect class="cell" x="1136" y="523" width="416" height="36" rx="5"/>
+              <text class="m" x="1145" y="537">Content-Type: text/html</text>
+              <text class="m" x="1145" y="551">Connection: close</text>
+              <text class="m" x="1352" y="537">Cache-Control: no-store</text>
+              <text class="m old" x="1352" y="551">Set-Cookie: 없음</text>
+            </g>
+            <g class="rev a-up" data-s="s5" style="--d:1s">
+              <text class="lb" x="1136" y="576"><tspan class="b6 k-res">응답 본문</tspan> 거절 안내 (HTML)</text>
+              <rect class="cell" x="1136" y="581" width="416" height="62" rx="5"/>
+              <text class="m" x="1145" y="597">&lt;h1&gt;Access denied&lt;/h1&gt;</text>
+              <text class="m" x="1145" y="612">자동화된 요청으로 판단되어 접속을 거절했습니다.</text>
+              <text class="x b6 k-raw" x="1145" y="633">검색 결과도 세션 쿠키도 없다</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- CDP 클라이언트: 브라우저의 디버깅 포트에 WebSocket 으로 붙는다.
+             연결선은 화면(입력 · 클릭 · 읽기)과 도착한 응답(멈춤 · 읽기 · 고침) 양쪽에 닿는다 -->
+        <g class="zone" data-z="c0 a1 c1 c2 c3 d1 d2 l0 l1 l2 l3 l4 r0 r6">
+          <g class="v-cdp">
+            <path class="ln cdp dash" d="M464 692V620"/>
+            <path class="ln cdp" d="M464 620H454" marker-end="url(#a-cdp)"/>
+            <path class="ln cdp" d="M464 620H474" marker-end="url(#a-cdp)"/>
+            <rect class="port" x="442" y="660" width="44" height="16" rx="5"/>
+            <text class="m c k-cdp" x="464" y="672">:9333</text>
+            <text class="lb b6 k-cdp" x="494" y="686">WebSocket · 디버깅 포트</text>
+          </g>
+          <rect class="g-cdp" x="192" y="692" width="668" height="172" rx="14"/>
+          <g class="v-cdp">
+            <text class="t k-cdp" x="212" y="718">CDP 클라이언트</text>
+            <text class="x" x="322" y="718">자동화 스크립트 · 사용자 대신 브라우저를 조작한다</text>
+            <rect class="pill-cdp" x="700" y="704" width="144" height="20" rx="10"/>
+            <text class="m c k-cdp" x="772" y="718">ws://127.0.0.1:9333</text>
+          </g>
+
+          <!-- 일반 스크립트 재생: 크롬에 붙지 않는다. 위 칸(요청 만들기 · 보내기 · 받기)을 이 코드가 직접 한다 -->
+          <g class="v v-raw">
+            <path class="ln raw" d="M464 692V672" marker-end="url(#a-raw)"/>
+            <text class="lb b6 k-raw" x="478" y="686">크롬도 CDP 포트도 없다 · 요청 만들기 · 보내기 · 받기를 이 코드가 직접 한다</text>
+            <text class="t k-raw" x="212" y="718">일반 스크립트</text>
+            <text class="x" x="320" y="718">크롬을 거치지 않는다 · 요청을 직접 만들어 서버에 직접 보낸다</text>
+            <rect class="pill-raw" x="700" y="704" width="144" height="20" rx="10"/>
+            <text class="m c k-raw" x="772" y="718">python · requests</text>
+            <g class="lrow" data-s="r0">
+              <rect class="lbg" x="204" y="730" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="740" r="4.5"/>
+              <text class="mb k-raw" x="234" y="744">•</text><text class="m ink" x="252" y="744">import requests</text>
+              <text class="x" x="556" y="744">크롬을 열지도, 붙지도 않는다</text>
+            </g>
+            <g class="lrow" data-s="s2">
+              <rect class="lbg" x="204" y="751" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="761" r="4.5"/>
+              <text class="mb k-raw" x="234" y="765">→</text><text class="m ink" x="252" y="765">requests.get(url, headers={"User-Agent": …})</text>
+              <text class="x" x="556" y="765">요청을 직접 만든다 · 쿠키 · 토큰이 없다</text>
+            </g>
+            <g class="lrow" data-s="s3">
+              <rect class="lbg" x="204" y="772" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="782" r="4.5"/>
+              <text class="mb k-raw" x="234" y="786">→</text><text class="m ink" x="252" y="786">TLS 악수 · OpenSSL (파이썬)</text>
+              <text class="x" x="556" y="786">크롬과 다른 지문이 서버에 남는다</text>
+            </g>
+            <g class="lrow" data-s="s5">
+              <rect class="lbg" x="204" y="793" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="803" r="4.5"/>
+              <text class="mb k-raw" x="234" y="807">←</text><text class="m ink" x="252" y="807">HTTP/1.1 403 Forbidden</text>
+              <text class="x" x="556" y="807">서버가 거절 응답을 보낸다</text>
+            </g>
+            <g class="lrow" data-s="s6">
+              <rect class="lbg" x="204" y="814" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="824" r="4.5"/>
+              <text class="mb k-raw" x="234" y="828">•</text><text class="m ink" x="252" y="828">print(r.status_code)  # 403</text>
+              <text class="x" x="556" y="828">코드는 거절 한 줄만 받는다</text>
+            </g>
+            <g class="lrow" data-s="r6">
+              <rect class="lbg" x="204" y="835" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="845" r="4.5"/>
+              <text class="mb k-raw" x="234" y="849">#</text><text class="m ink" x="252" y="849">통과하려면: 쿠키 복사 · TLS 지문 위장 · 토큰 역산</text>
+              <text class="x" x="556" y="849">서버가 규칙을 바꿀 때마다 다시 한다</text>
+            </g>
+          </g>
+
+          <!-- 재생 전 · 기본 접속: CDP 로 할 수 있는 일 -->
+          <g class="v v-rest v-plain">
+            <circle class="bul" cx="220" cy="740" r="3"/><text class="m ink" x="234" y="744">Input.insertText · Input.dispatchMouseEvent</text><text class="x" x="556" y="744">사용자 대신 입력하고 누른다</text>
+            <circle class="bul" cx="220" cy="761" r="3"/><text class="m ink" x="234" y="765">Page.navigate</text><text class="x" x="556" y="765">원하는 주소로 이동한다</text>
+            <circle class="bul" cx="220" cy="782" r="3"/><text class="m ink" x="234" y="786">Fetch.requestPaused</text><text class="x" x="556" y="786">요청 · 응답을 멈춘다</text>
+            <circle class="bul" cx="220" cy="803" r="3"/><text class="m ink" x="234" y="807">Fetch.getResponseBody</text><text class="x" x="556" y="807">응답 본문을 읽는다</text>
+            <circle class="bul" cx="220" cy="824" r="3"/><text class="m ink" x="234" y="828">Fetch.fulfillRequest</text><text class="x" x="556" y="828">고친 응답으로 바꿔 넘긴다</text>
+            <circle class="bul" cx="220" cy="845" r="3"/><text class="m ink" x="234" y="849">Runtime.evaluate</text><text class="x" x="556" y="849">페이지 안의 값을 읽는다</text>
+          </g>
+
+          <!-- 응답 고치기 -->
+          <g class="v v-mod">
+            <g class="lrow" data-s="c0">
+              <rect class="lbg" x="204" y="730" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="740" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="744">→</text><text class="m ink" x="252" y="744">Fetch.enable { requestStage: "Response" }</text>
+              <text class="x" x="556" y="744">응답이 오면 멈춰 달라고 걸어 둔다</text>
+            </g>
+            <g class="lrow" data-s="a1">
+              <rect class="lbg" x="204" y="751" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="761" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="765">→</text><text class="m ink" x="252" y="765">Input.insertText "아이폰" → dispatchMouseEvent</text>
+              <text class="x" x="556" y="765">사용자 대신 검색어를 넣고 누른다</text>
+            </g>
+            <g class="lrow" data-s="c1">
+              <rect class="lbg" x="204" y="772" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="782" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="786">←</text><text class="m ink" x="252" y="786">Fetch.requestPaused { status: 200 }</text>
+              <text class="x" x="556" y="786">응답이 멈췄다고 크롬이 알린다</text>
+            </g>
+            <g class="lrow" data-s="c2">
+              <rect class="lbg" x="204" y="793" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="803" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="807">→</text><text class="m ink" x="252" y="807">Fetch.getResponseBody</text>
+              <text class="x" x="556" y="807">응답 본문을 읽는다</text>
+            </g>
+            <text class="mb k-cdp fx a-type" data-s="c2" style="--d:2s" x="402" y="807">← "price": 1250000</text>
+            <g class="lrow" data-s="c3">
+              <rect class="lbg" x="204" y="814" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="824" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="828">→</text><text class="m ink" x="252" y="828">Fetch.fulfillRequest { "price": 990000 }</text>
+              <text class="x" x="556" y="828">고친 응답으로 바꿔 넘긴다</text>
+            </g>
+            <text class="lb" x="212" y="851">요청 단계(requestStage: "Request")에서도 같은 방법으로 멈춰 URL · 헤더 · 본문을 고칠 수 있다</text>
+          </g>
+
+          <!-- 수집 · DB 저장 -->
+          <g class="v v-col">
+            <g class="lrow" data-s="c0">
+              <rect class="lbg" x="204" y="730" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="740" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="744">→</text><text class="m ink" x="252" y="744">Fetch.enable { requestStage: "Response" }</text>
+              <text class="x" x="556" y="744">응답이 오면 멈춰 달라고 걸어 둔다</text>
+            </g>
+            <g class="lrow" data-s="a1">
+              <rect class="lbg" x="204" y="751" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="761" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="765">→</text><text class="m ink" x="252" y="765">Input.insertText "아이폰" → dispatchMouseEvent</text>
+              <text class="x" x="556" y="765">사용자 대신 검색어를 넣고 누른다</text>
+            </g>
+            <g class="lrow" data-s="c1">
+              <rect class="lbg" x="204" y="772" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="782" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="786">←</text><text class="m ink" x="252" y="786">Fetch.requestPaused { status: 200 }</text>
+              <text class="x" x="556" y="786">응답이 멈췄다고 크롬이 알린다</text>
+            </g>
+            <g class="lrow" data-s="c2">
+              <rect class="lbg" x="204" y="793" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="803" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="807">→</text><text class="m ink" x="252" y="807">Fetch.getResponseBody</text>
+              <text class="x" x="556" y="807">응답 본문을 읽는다</text>
+            </g>
+            <text class="mb k-cdp fx a-type" data-s="c2" style="--d:2s" x="402" y="807">← items 4건</text>
+            <g class="lrow" data-s="d1">
+              <rect class="lbg" x="204" y="814" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="824" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="828">•</text><text class="m ink" x="252" y="828">INSERT INTO prices (model, price) …</text>
+              <text class="x" x="556" y="828">모델 · 가격을 뽑아 내 DB에 저장한다</text>
+            </g>
+            <g class="lrow" data-s="d2">
+              <rect class="lbg" x="204" y="835" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="845" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="849">→</text><text class="m ink" x="252" y="849">Fetch.continueRequest</text>
+              <text class="x" x="556" y="849">고치지 않고 그대로 넘긴다</text>
+            </g>
+          </g>
+
+          <!-- 자동 로그인 -->
+          <g class="v v-login">
+            <g class="lrow" data-s="l0">
+              <rect class="lbg" x="204" y="730" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="740" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="744">•</text><text class="s ink" x="252" y="744">보관함에서 내 로그인 정보를 읽는다</text>
+              <text class="x" x="556" y="744">아이디와 비밀번호를 꺼낸다</text>
+            </g>
+            <g class="lrow" data-s="l1">
+              <rect class="lbg" x="204" y="751" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="761" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="765">→</text><text class="m ink" x="252" y="765">Input.insertText { text: "hong" }</text>
+              <text class="x" x="556" y="765">사용자 대신 아이디 칸에 넣는다</text>
+            </g>
+            <g class="lrow" data-s="l2">
+              <rect class="lbg" x="204" y="772" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="782" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="786">→</text><text class="m ink" x="252" y="786">Input.insertText { text: "••••••••" }</text>
+              <text class="x" x="556" y="786">비밀번호 칸에 넣는다</text>
+            </g>
+            <g class="lrow" data-s="l3">
+              <rect class="lbg" x="204" y="793" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="803" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="807">→</text><text class="m ink" x="252" y="807">Input.dispatchMouseEvent (x, y)</text>
+              <text class="x" x="556" y="807">로그인 버튼을 누른다</text>
+            </g>
+            <g class="lrow" data-s="l4">
+              <rect class="lbg" x="204" y="814" width="644" height="20" rx="5"/><circle class="ldot" cx="220" cy="824" r="4.5"/>
+              <text class="mb k-cdp" x="234" y="828">→</text><text class="m ink" x="252" y="828">Runtime.evaluate</text>
+              <text class="x" x="556" y="828">로그인됐는지 화면을 읽어 확인한다</text>
+            </g>
+            <text class="mb k-cdp fx a-type" data-s="l4" style="--d:1.6s" x="372" y="828">← "홍길동 님"</text>
+          </g>
+        </g>
+
+        <!-- 오른쪽 아래 칸. 재생 전: CDP 로 할 수 있는 일 세 가지 (누르면 그 재생) -->
+        <g class="v v-rest">
+          <rect class="card" x="884" y="692" width="700" height="172" rx="14"/>
+          <text class="t" x="904" y="718">CDP로 할 수 있는 일</text>
+          <text class="x" x="1046" y="718">사용자 대신 스크립트가 한다 · 상자를 누르면 한 단계씩 재생한다</text>
+          <g id="hot-mod" class="hot cdp" tabindex="0" role="button" aria-label="응답 고치기: CDP가 응답을 멈추고 읽고 고치는 과정을 한 단계씩 재생">
+            <rect class="cell cdp hot-box" x="904" y="732" width="212" height="116" rx="10"/>
+            <text class="t k-cdp" x="918" y="758">응답 고치기</text>
+            <text class="x" x="918" y="781">응답을 멈춰 값을 바꾼다.</text>
+            <text class="x" x="918" y="797">화면에는 바뀐 값이 보인다.</text>
+            <text class="m" x="918" y="830">Fetch.fulfillRequest</text>
+            <circle class="hot-dot" cx="1116" cy="732" r="10"/><path class="hot-tri" d="M1113 727.5L1120.5 732L1113 736.5Z"/>
+          </g>
+          <g id="hot-col" class="hot cdp" tabindex="0" role="button" aria-label="수집 · DB 저장: CDP가 응답에서 모델과 가격을 읽어 내 DB에 저장하는 과정을 한 단계씩 재생">
+            <rect class="cell cdp hot-box" x="1128" y="732" width="212" height="116" rx="10"/>
+            <text class="t k-cdp" x="1142" y="758">수집 · DB 저장</text>
+            <text class="x" x="1142" y="781">응답에서 모델 · 가격을 뽑아</text>
+            <text class="x" x="1142" y="797">내 DB에 쌓는다.</text>
+            <text class="m" x="1142" y="830">Fetch.getResponseBody</text>
+            <circle class="hot-dot" cx="1340" cy="732" r="10"/><path class="hot-tri" d="M1337 727.5L1344.5 732L1337 736.5Z"/>
+          </g>
+          <g id="hot-login" class="hot cdp" tabindex="0" role="button" aria-label="자동 로그인: CDP가 보관해 둔 로그인 정보를 대신 입력해 로그인하는 과정을 한 단계씩 재생">
+            <rect class="cell cdp hot-box" x="1352" y="732" width="212" height="116" rx="10"/>
+            <text class="t k-cdp" x="1366" y="758">자동 로그인</text>
+            <text class="x" x="1366" y="781">보관해 둔 내 로그인 정보를</text>
+            <text class="x" x="1366" y="797">대신 입력하고 누른다.</text>
+            <text class="m" x="1366" y="830">Input.insertText</text>
+            <circle class="hot-dot" cx="1564" cy="732" r="10"/><path class="hot-tri" d="M1561 727.5L1568.5 732L1561 736.5Z"/>
+          </g>
+        </g>
+
+        <!-- 기본 접속 · 응답 고치기: 서버가 보낸 값과 화면에 보이는 값 -->
+        <g class="v v-plain v-mod">
+          <g class="zone" data-z="s6">
+            <rect class="card" x="884" y="692" width="700" height="172" rx="14"/>
+            <text class="t" x="904" y="718">서버가 보낸 값과 화면에 보이는 값</text>
+            <rect class="cell res" x="904" y="732" width="252" height="116" rx="10"/>
+            <text class="lb b6 k-res" x="920" y="756">서버가 보낸 값</text>
+            <text class="big" x="920" y="798">1,250,000원</text>
+            <text class="x" x="920" y="828">iPhone 15 · 응답 본문의 price</text>
+            <rect class="cell req" x="1172" y="732" width="252" height="116" rx="10"/>
+            <text class="lb b6 k-req" x="1188" y="756">화면에 보이는 값</text>
+            <text class="big rev orig a-in" data-s="s6" style="--d:2.5s" x="1188" y="798">1,250,000원</text>
+            <text class="big k-cdp fx a-pop" data-m="mod" data-s="s6" style="--d:2.5s" x="1188" y="798">990,000원</text>
+            <text class="big old fx" data-s="s1" data-s-mod="c0" data-until="s6" x="1188" y="798">…</text>
+            <text class="x" x="1188" y="828">iPhone 15 · 검색 결과 첫 줄</text>
+            <g class="fx a-pop" data-m="plain" data-s="s6" style="--d:3s">
+              <rect class="solid-res" x="1454" y="762" width="100" height="30" rx="15"/>
+              <text class="w c b6" x="1504" y="781.5">같다</text>
+              <text class="x c" x="1504" y="816">서버 값이 그대로 보인다</text>
+            </g>
+            <g class="fx a-pop" data-m="mod" data-s="s6" style="--d:3s">
+              <rect class="solid-cdp" x="1454" y="762" width="100" height="30" rx="15"/>
+              <text class="w c b6" x="1504" y="781.5">다르다</text>
+              <text class="x c" x="1504" y="816">서버 원본은 그대로다</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- 수집: 내 DB. 스크립트가 응답에서 뽑은 모델 · 가격이 쌓인다 -->
+        <g class="v v-col">
+          <path class="ln cdp" d="M860 778H882" marker-end="url(#a-cdp)"/>
+          <g class="zone" data-z="d1 d2 s6">
+            <rect class="card" x="884" y="692" width="700" height="172" rx="14"/>
+            <path class="db mine" d="M904 706v11c0 2.800 5.800 5 13 5s13-2.200 13-5v-11Z"/>
+            <ellipse class="db mine" cx="917" cy="706" rx="13" ry="4.500"/>
+            <text class="t" x="940" y="718">내 DB</text>
+            <text class="m" x="986" y="718">prices.db</text>
+            <text class="x" x="1058" y="718">스크립트가 응답에서 뽑은 값을 쌓아 두는 곳</text>
+            <rect class="band" x="904" y="732" width="520" height="22" rx="5"/>
+            <text class="lb b6" x="916" y="747">모델</text>
+            <text class="lb b6 e" x="1150" y="747">가격 (원)</text>
+            <text class="lb b6" x="1182" y="747">검색어</text>
+            <text class="lb b6" x="1280" y="747">수집 시각</text>
+            <path class="ln thin" d="M904 778H1424M904 801H1424M904 824H1424M904 847H1424"/>
+            <text class="x c fx a-in" data-s="c0" data-until="d1" x="1164" y="805">아직 비어 있다</text>
+            <g class="fx a-up" data-s="d1" style="--d:1.7s">
+              <text class="s ink b6" x="916" y="771">iPhone 15</text><text class="m ink e" x="1150" y="771">1,250,000</text><text class="x" x="1182" y="771">아이폰</text><text class="m" x="1280" y="771">10-05 14:02:07</text>
+            </g>
+            <g class="fx a-up" data-s="d1" style="--d:2s">
+              <text class="s ink b6" x="916" y="794">iPhone 15 Pro</text><text class="m ink e" x="1150" y="794">1,550,000</text><text class="x" x="1182" y="794">아이폰</text><text class="m" x="1280" y="794">10-05 14:02:07</text>
+            </g>
+            <g class="fx a-up" data-s="d1" style="--d:2.3s">
+              <text class="s ink b6" x="916" y="817">Galaxy S24</text><text class="m ink e" x="1150" y="817">1,200,000</text><text class="x" x="1182" y="817">아이폰</text><text class="m" x="1280" y="817">10-05 14:02:07</text>
+            </g>
+            <g class="fx a-up" data-s="d1" style="--d:2.6s">
+              <text class="s ink b6" x="916" y="840">iPhone 14</text><text class="m ink e" x="1150" y="840">1,000,000</text><text class="x" x="1182" y="840">아이폰</text><text class="m" x="1280" y="840">10-05 14:02:07</text>
+            </g>
+            <rect class="cell cdp" x="1440" y="732" width="128" height="116" rx="10"/>
+            <text class="lb b6 k-cdp" x="1454" y="756">저장된 줄</text>
+            <text class="big old fx" data-s="c0" data-until="d1" x="1454" y="800">0건</text>
+            <text class="big k-cdp fx a-pop" data-s="d1" style="--d:3s" x="1454" y="800">4건</text>
+            <text class="x" x="1454" y="828">모델 · 가격</text>
+          </g>
+          <g class="fx" data-s="d1">
+            <path class="flow s-cdp a-flow" pathLength="1" style="--d:1.2s;--t:.6s" d="M860 778H884"/>
+            <rect class="ring s-cdp a-ring" style="--d:1.5s" x="880" y="688" width="708" height="180" rx="17"/>
+          </g>
+        </g>
+
+        <!-- 자동 로그인: 내 로그인 정보 보관함. 스크립트가 여기서 꺼내 대신 입력한다 -->
+        <g class="v v-login">
+          <path class="ln cdp" d="M884 778H862" marker-end="url(#a-cdp)"/>
+          <g class="zone" data-z="l0 l1 l2">
+            <rect class="card" x="884" y="692" width="700" height="172" rx="14"/>
+            <rect class="lk" x="905" y="707" width="18" height="14" rx="2.5"/>
+            <path class="lks" d="M909 707v-4a5 5 0 0 1 10 0v4"/>
+            <text class="t" x="934" y="718">내 로그인 정보</text>
+            <text class="x" x="1036" y="718">PC 안 보관함에 두고 스크립트만 읽는다</text>
+            <rect class="cell" x="904" y="732" width="400" height="116" rx="10"/>
+            <path class="ln thin" d="M904 771H1304M904 810H1304"/>
+            <text class="lb b6" x="920" y="756">사이트</text><text class="m ink" x="1000" y="756">www.example.com</text>
+            <text class="lb b6" x="920" y="795">아이디</text><text class="m ink" x="1000" y="795">hong</text>
+            <text class="lb b6" x="920" y="833">비밀번호</text><text class="m ink" x="1000" y="833">••••••••</text>
+            <text class="lb e" x="1290" y="833">가려서 보관한다</text>
+            <rect class="hlrow fx a-in" data-s="l1" data-until="l2" style="--d:.1s" x="908" y="775" width="392" height="31" rx="5"/>
+            <rect class="hlrow fx a-in" data-s="l2" data-until="l3" style="--d:.1s" x="908" y="814" width="392" height="30" rx="5"/>
+            <text class="s ink b6" x="1324" y="756">비밀번호는 코드에 적지 않는다</text>
+            <text class="x" x="1324" y="780">보관함 예: Windows 자격 증명 관리자,</text>
+            <text class="x" x="1324" y="796">암호화한 설정 파일</text>
+            <text class="x" x="1324" y="826">서버로 갈 때는 HTTPS로 암호화된다</text>
+          </g>
+          <g class="fx" data-s="l0">
+            <rect class="ring s-cdp a-ring" style="--d:.2s" x="900" y="728" width="408" height="124" rx="13"/>
+            <path class="flow s-cdp a-flow" pathLength="1" style="--d:.7s;--t:.6s" d="M884 778H860"/>
+          </g>
+        </g>
+
+        <!-- 일반 스크립트: 서버가 보는 것. 같은 주소로 간 두 요청을 서버 쪽에서 견준다 -->
+        <g class="v v-raw">
+          <g class="zone" data-z="r0 s2 s3 s4 s5 s6 r6">
+            <rect class="card" x="884" y="692" width="700" height="172" rx="14"/>
+            <text class="t" x="904" y="718">서버가 보는 것</text>
+            <text class="x" x="1010" y="718">같은 주소로 간 두 요청 · 서버는 네트워크로 넘어온 것만 본다</text>
+            <g id="side-hot" class="hot" tabindex="0" role="button" aria-label="자세히 보기: 일반 스크립트 방식과 CDP 방식의 차이를 표로 적은 옆 칸을 연다">
+              <rect class="pill-raw hot-box" x="1458" y="704" width="110" height="20" rx="10"/>
+              <text class="lb b6 k-raw c" x="1513" y="718">자세히 보기 · D</text>
+            </g>
+            <!-- 크롬 + CDP 가 보낸 요청 -->
+            <rect class="cell req" x="904" y="732" width="250" height="116" rx="10"/>
+            <text class="lb b6 k-req" x="918" y="752">크롬 + CDP가 보낸 요청</text>
+            <text class="lb" x="918" y="776">헤더 · 쿠키</text>
+            <text class="lb" x="918" y="796">TLS 지문</text>
+            <text class="lb" x="918" y="816">세션 · JS 토큰</text>
+            <g class="fx a-in" data-s="s2" style="--d:1.8s">
+              <text class="x ink" x="1004" y="776">크롬 그대로</text>
+              <circle class="ok" cx="1134" cy="772" r="7"/><path class="chk" d="M1130.7 772.3l2.3 2.3 4.3-5"/>
+            </g>
+            <g class="fx a-in" data-s="s3" style="--d:1.8s">
+              <text class="x ink" x="1004" y="796">크롬 그대로</text>
+              <circle class="ok" cx="1134" cy="792" r="7"/><path class="chk" d="M1130.7 792.3l2.3 2.3 4.3-5"/>
+            </g>
+            <g class="fx a-in" data-s="s4" style="--d:2s">
+              <text class="x ink" x="1004" y="816">크롬이 만들어 둔다</text>
+              <circle class="ok" cx="1134" cy="812" r="7"/><path class="chk" d="M1130.7 812.3l2.3 2.3 4.3-5"/>
+            </g>
+            <g class="fx a-pop" data-s="s5" style="--d:1.4s">
+              <rect class="solid-res" x="918" y="826" width="64" height="18" rx="9"/>
+              <text class="lb b6 w c" x="950" y="839">통과</text>
+              <text class="lb k-res" x="992" y="839">앞의 CDP 재생이 이 경우다</text>
+            </g>
+            <!-- 일반 스크립트가 보낸 요청 -->
+            <rect class="cell raw" x="1166" y="732" width="250" height="116" rx="10"/>
+            <text class="lb b6 k-raw" x="1180" y="752">일반 스크립트가 보낸 요청</text>
+            <text class="lb" x="1180" y="776">헤더 · 쿠키</text>
+            <text class="lb" x="1180" y="796">TLS 지문</text>
+            <text class="lb" x="1180" y="816">세션 · JS 토큰</text>
+            <g class="fx a-in" data-s="s2" style="--d:1.8s">
+              <text class="x ink" x="1266" y="776">흉내 · 쿠키 없음</text>
+              <circle class="bad" cx="1396" cy="772" r="7"/><path class="xx" d="M1393 769l6 6M1399 769l-6 6"/>
+            </g>
+            <g class="fx a-in" data-s="s3" style="--d:1.8s">
+              <text class="x ink" x="1266" y="796">파이썬 OpenSSL</text>
+              <circle class="bad" cx="1396" cy="792" r="7"/><path class="xx" d="M1393 789l6 6M1399 789l-6 6"/>
+            </g>
+            <g class="fx a-in" data-s="s4" style="--d:2s">
+              <text class="x ink" x="1266" y="816">JS가 안 돌아 없음</text>
+              <circle class="bad" cx="1396" cy="812" r="7"/><path class="xx" d="M1393 809l6 6M1399 809l-6 6"/>
+            </g>
+            <g class="fx a-pop" data-s="s5" style="--d:1.4s">
+              <rect class="solid-raw" x="1180" y="826" width="64" height="18" rx="9"/>
+              <text class="lb b6 w c" x="1212" y="839">거절</text>
+              <text class="lb k-raw" x="1254" y="839">403 · 하나만 어긋나도 거절</text>
+            </g>
+            <!-- 결론 -->
+            <g class="fx a-in" data-s="r6" style="--d:.4s">
+              <text class="s ink b6" x="1430" y="756">CDP는 빌리고</text>
+              <text class="s ink b6" x="1430" y="774">스크립트는 흉내 낸다</text>
+              <text class="x" x="1430" y="800">서버가 이미 믿는 크롬이</text>
+              <text class="x" x="1430" y="816">보내니 거절할 근거가 없다</text>
+              <text class="x" x="1430" y="840">흉내는 모자란 만큼</text>
+              <text class="x" x="1430" y="856">거절당한다</text>
+            </g>
+          </g>
+          <g class="fx" data-s="r6">
+            <rect class="ring s-raw a-ring" style="--d:.2s" x="880" y="688" width="708" height="180" rx="17"/>
+          </g>
+        </g>
+
+        <!-- 지나가는 표시: 단계마다 메시지가 길을 따라 움직인다 -->
+        <g class="fx" data-s="s1">
+          <path class="flow s-ink a-flow" pathLength="1" style="--d:0s;--t:.9s" d="M132 250H186V154H210"/>
+        </g>
+        <g class="fx" data-s="s2">
+          <path class="flow s-req a-flow" pathLength="1" style="--d:0s;--t:.5s" d="M452 202H476"/>
+          <rect class="ring s-req a-ring" style="--d:.2s" x="472" y="92" width="288" height="220" rx="13"/>
+        </g>
+        <g class="fx" data-s="s3">
+          <g class="tok a-move" style="--x0:716px;--y0:202px;--x1:806px;--y1:202px;--d:.1s;--t:.7s">
+            <rect class="tk-req" x="-28" y="-11" width="56" height="22" rx="11"/><text class="tkt" y="4">요청</text>
+          </g>
+          <rect class="ring s-lock a-ring" style="--d:.7s" x="782" y="170" width="64" height="64" rx="11"/>
+          <g class="tok a-move" style="--x0:868px;--y0:202px;--x1:1092px;--y1:202px;--d:.9s;--t:1.6s">
+            <rect class="tk-lock" x="-38" y="-11" width="76" height="22" rx="11"/>
+            <rect class="w" x="-28" y="-3" width="9" height="7" rx="1.5"/><path class="tkl" d="M-26 -3v-2a2.5 2.5 0 0 1 5 0v2"/>
+            <text class="tkm" x="-13" y="4">a9f3 0c…</text>
+          </g>
+          <rect class="ring s-res a-ring" style="--d:2.4s" x="1120" y="181" width="288" height="42" rx="11"/>
+        </g>
+        <g class="fx" data-s="s5">
+          <rect class="ring s-res a-ring" style="--d:0s" x="1120" y="420" width="448" height="236" rx="13"/>
+          <g class="tok a-move" style="--x0:1092px;--y0:538px;--x1:868px;--y1:538px;--d:1.7s;--t:1.6s">
+            <rect class="tk-lock" x="-38" y="-11" width="76" height="22" rx="11"/>
+            <rect class="w" x="-28" y="-3" width="9" height="7" rx="1.5"/><path class="tkl" d="M-26 -3v-2a2.5 2.5 0 0 1 5 0v2"/>
+            <text class="tkm" x="-13" y="4">5ce1 77…</text>
+          </g>
+          <rect class="ring s-lock a-ring" style="--d:3.2s" x="782" y="506" width="64" height="64" rx="11"/>
+        </g>
+        <!-- 복호화 → 도착 (응답을 멈추는 재생에서는 '멈춤' 단계) -->
+        <g class="fx" data-s="s6" data-s-mod="c1" data-s-col="c1">
+          <g class="tok a-move" style="--x0:806px;--y0:538px;--x1:724px;--y1:538px;--d:0s;--t:.6s">
+            <rect class="tk-res" x="-28" y="-11" width="56" height="22" rx="11"/><text class="tkt" y="4">응답</text>
+          </g>
+          <rect class="ring s-res a-ring" style="--d:.4s" x="472" y="420" width="288" height="236" rx="13"/>
+        </g>
+        <!-- 도착 → 화면 -->
+        <g class="fx" data-m="plain col login raw" data-s="s6">
+          <g class="tok a-move" style="--x0:508px;--y0:538px;--x1:428px;--y1:538px;--d:.8s;--t:.5s">
+            <rect class="tk-res" x="-28" y="-11" width="56" height="22" rx="11"/><text class="tkt" y="4">응답</text>
+          </g>
+          <rect class="ring s-res a-ring" style="--d:1.2s" x="208" y="92" width="248" height="564" rx="13"/>
+        </g>
+        <g class="fx" data-m="mod" data-s="s6">
+          <g class="tok a-move" style="--x0:508px;--y0:538px;--x1:428px;--y1:538px;--d:.8s;--t:.5s">
+            <rect class="tk-cdp" x="-38" y="-11" width="76" height="22" rx="11"/><text class="tkt" y="4">고친 응답</text>
+          </g>
+          <rect class="ring s-cdp a-ring" style="--d:1.2s" x="208" y="92" width="248" height="564" rx="13"/>
+        </g>
+        <!-- CDP 연결선으로 명령(위로)과 알림(아래로)이 오간다. 왼쪽 갈래 = 화면, 오른쪽 갈래 = 도착한 응답 -->
+        <g class="fx" data-m="mod col" data-s="c0">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.5s;--t:.9s" d="M464 692V620H476"/>
+          <rect class="ring s-cdp a-ring" style="--d:1.1s" x="438" y="656" width="52" height="24" rx="8"/>
+        </g>
+        <g class="fx" data-m="mod col" data-s="a1">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:0s;--t:.7s" d="M464 692V620H452"/>
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:1.3s;--t:.7s" d="M464 692V620H452"/>
+        </g>
+        <g class="fx" data-m="mod col" data-s="c1">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:1.5s;--t:.9s" d="M476 620H464V692"/>
+        </g>
+        <g class="fx" data-m="mod col" data-s="c2">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.3s;--t:.8s" d="M464 692V620H476"/>
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:1.4s;--t:.8s" d="M476 620H464V692"/>
+        </g>
+        <g class="fx" data-m="mod" data-s="c3">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.4s;--t:.9s" d="M464 692V620H476"/>
+        </g>
+        <g class="fx" data-m="col" data-s="d1">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.5s;--t:.8s" d="M476 620H464V692"/>
+        </g>
+        <g class="fx" data-m="col" data-s="d2">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.2s;--t:.8s" d="M464 692V620H476"/>
+        </g>
+        <g class="fx" data-m="login" data-s="l0">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:1.5s;--t:.6s" d="M464 692V660"/>
+          <rect class="ring s-cdp a-ring" style="--d:2s" x="438" y="656" width="52" height="24" rx="8"/>
+        </g>
+        <g class="fx" data-m="login" data-s="l1">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.1s;--t:.7s" d="M464 692V620H452"/>
+        </g>
+        <g class="fx" data-m="login" data-s="l2">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.1s;--t:.7s" d="M464 692V620H452"/>
+        </g>
+        <g class="fx" data-m="login" data-s="l3">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.1s;--t:.7s" d="M464 692V620H452"/>
+        </g>
+        <g class="fx" data-m="login" data-s="l4">
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:.1s;--t:.7s" d="M464 692V620H452"/>
+          <path class="flow s-cdp a-flow" pathLength="1" style="--d:1.1s;--t:.7s" d="M452 620H464V692"/>
+        </g>
+      </svg>
+    </div>
+    <figcaption class="cap">
+      <div class="modes" role="group" aria-label="재생 고르기">
+        <button class="btn go" id="go-plain" type="button">▶ 기본 접속</button>
+        <button class="btn go cdp" id="go-mod" type="button">▶ CDP 응답 고치기</button>
+        <button class="btn go cdp" id="go-col" type="button">▶ CDP 수집 · DB 저장</button>
+        <button class="btn go cdp" id="go-login" type="button">▶ CDP 자동 로그인</button>
+        <button class="btn go raw" id="go-raw" type="button">▶ 일반 스크립트 접속</button>
+      </div>
+      <ol class="steps" id="steps" aria-label="재생 단계"></ol>
+      <p id="cap" aria-live="polite"></p>
+      <div class="ctl">
+        <button class="btn" id="prev" type="button">‹ 이전</button>
+        <button class="btn" id="next" type="button">다음 ›</button>
+        <button class="btn" id="auto" type="button">자동 재생</button>
+        <button class="btn" id="end" type="button">전체 보기</button>
+      </div>
+    </figcaption>
+  </figure>
+</main>
+
+<!-- 옆 칸: 일반 스크립트 방식과 CDP 방식의 차이. 오른쪽 위 '자세히 보기' 또는 D 로 여닫는다. 재생 중에는 지금 단계와 관련된 표 줄(data-k)에 색이 든다 -->
+<aside id="side" class="side" hidden aria-labelledby="side-h">
+  <div class="side-bar">
+    <div>
+      <p class="eyebrow">자세히 보기 · <kbd>D</kbd></p>
+      <h2 id="side-h">일반 스크립트 방식과 CDP 방식</h2>
+    </div>
+    <button class="btn" id="side-x" type="button">닫기</button>
+  </div>
+  <div class="side-body">
+    <p class="lead"><strong>CDP는 빌리고, 스크립트는 흉내 낸다.</strong> 경로부터 다르다. CDP 방식에서 서버에 요청을 보내는 것은 크롬이고, 일반 스크립트는 크롬을 거치지 않고 스크립트가 직접 보낸다. 그래서 CDP는 서버가 이미 믿는 진짜 크롬을 빌려 쓰는 셈이라 서버 쪽에는 거절할 근거가 없고, 일반 스크립트는 크롬인 척해야 하며 흉내가 모자란 자리마다 거절 사유가 생긴다.</p>
+    <p class="note">재생 중에 열어 두면 지금 단계와 관련된 줄에 색이 든다. 2번 · 5번 표는 일반 스크립트 재생(키 5)과 함께 보면 왼쪽 열이, CDP 재생(키 2~4)과 함께 보면 오른쪽 열이 그림과 맞물린다.</p>
+
+    <h3>1 · 경로부터 다르다 · 누가 서버에 보내는가</h3>
+    <p>CDP 방식에서 스크립트는 크롬에 명령만 한다. 요청을 만들어 서버에 보내는 것은 크롬이다. 일반 스크립트는 크롬을 거치지 않는다. 요청을 만드는 것도, TLS 악수를 하는 것도, 보내는 것도 스크립트 자신이다.</p>
+    <table class="cmp">
+      <thead><tr><th>방식</th><th>경로</th><th>서버에 보내는 쪽</th></tr></thead>
+      <tbody>
+        <tr data-k="c0 a1 l0"><td>CDP</td><td>스크립트 → CDP (127.0.0.1:9333, PC 안) → <strong>크롬</strong> → HTTPS → 서버</td><td><span class="ok">크롬.</span> 지문 · 헤더 · 쿠키 · 토큰을 크롬이 만든다. 스크립트는 입력 · 클릭 · 응답 읽기만 시킨다.</td></tr>
+        <tr data-k="r0"><td>일반 스크립트</td><td><strong>스크립트</strong> → HTTPS → 서버</td><td><span class="no">스크립트 자신.</span> 크롬이 없으니 크롬이 만들던 것을 전부 스크립트가 흉내 내야 한다.</td></tr>
+      </tbody>
+    </table>
+    <p>아래 표의 차이는 모두 여기서 나온다.</p>
+
+    <h3>2 · 서버가 보는 것</h3>
+    <p>서버가 아는 것은 네트워크로 넘어온 것뿐이다. CDP 소켓은 내 PC 안(127.0.0.1:9333)에서만 오가므로 서버에는 흔적이 없다. 서버가 견줄 수 있는 지점은 다음과 같다.</p>
+    <table class="cmp">
+      <thead><tr><th>관찰 지점</th><th>일반 스크립트 (requests · curl)</th><th>CDP (돌아가는 크롬에 붙음)</th></tr></thead>
+      <tbody>
+        <tr data-k="s3"><td>TLS 지문<span class="sub">JA3 · JA4</span></td><td><span class="no">다르다.</span> 파이썬 OpenSSL이 내는 암호 방식 목록과 확장 순서가 크롬과 다르다. 악수는 암호화 전이라 서버에 그대로 보인다.</td><td><span class="ok">크롬 그대로.</span> 악수를 크롬이 하므로 지문도 크롬이다.</td></tr>
+        <tr data-k="s3"><td>HTTP/2 지문</td><td><span class="no">다르다.</span> requests는 HTTP/1.1만 쓴다. h2를 써도 SETTINGS 값과 의사 헤더 순서가 크롬과 다르다.</td><td><span class="ok">크롬 그대로.</span></td></tr>
+        <tr data-k="s2"><td>헤더 집합 · 순서</td><td><span class="no">흉내.</span> <code>User-Agent</code>만 바꾸면 <code>sec-ch-ua</code> · <code>sec-fetch-*</code> · <code>Accept-Language</code>가 없고 순서도 다르다. UA와 TLS 지문이 안 맞으면 그 자리에서 걸린다.</td><td><span class="ok">크롬 그대로.</span> 크롬이 헤더를 만든다.</td></tr>
+        <tr data-k="s2 s4"><td>쿠키 · 세션</td><td><span class="no">없다.</span> 로그인 세션 쿠키도, JS가 심은 쿠키도 없다. 브라우저에서 내보내 넣을 수는 있지만 수명이 짧고 IP · UA에 묶이기도 한다.</td><td><span class="ok">있다.</span> 사람이 로그인해 둔 세션을 그대로 쓴다.</td></tr>
+        <tr data-k="s4"><td>JS가 만드는 토큰 · 챌린지</td><td><span class="no">못 만든다.</span> JS가 돌지 않으니 CSRF 토큰, 봇 탐지 토큰, JS 챌린지 페이지(Cloudflare 등)를 넘지 못한다.</td><td><span class="ok">그냥 된다.</span> 페이지 JS가 크롬 안에서 평소처럼 돈다.</td></tr>
+        <tr data-k="l0 l1 l2 l3"><td>로그인 · SSO · MFA</td><td><span class="no">직접 구현.</span> SAML · OIDC 리디렉션을 따라가야 하고 MFA에서 막힌다.</td><td><span class="ok">사람이 끝낸다.</span> 한 번 로그인한 크롬에 붙으면 끝이고, 이후 요청은 그 세션으로 나간다.</td></tr>
+        <tr data-k="s4 s5"><td>서버 판정</td><td><span class="no">거절 가능.</span> 위 항목 중 하나만 어긋나도 403 · 429 · 챌린지 페이지.</td><td><span class="ok">통과.</span> 사람이 보낸 요청과 구별할 근거가 없다.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>3 · CDP를 알아채는 쪽은 서버가 아니라 JS다</h3>
+    <p>서버는 못 보지만, 서버가 내려보낸 봇 탐지 JS(Cloudflare · Akamai · DataDome 등)는 브라우저 안에서 신호를 재어 서버에 보고한다.</p>
+    <table class="cmp">
+      <thead><tr><th>신호</th><th>언제 켜지나</th><th>이 흐름도의 방식에서는</th></tr></thead>
+      <tbody>
+        <tr><td><code>navigator.webdriver</code></td><td>Selenium · Puppeteer가 크롬을 <code>--enable-automation</code>으로 새로 띄울 때 true가 된다.</td><td><span class="ok">false.</span> 이미 떠 있는 크롬에 디버깅 포트로 붙기만 한다.</td></tr>
+        <tr><td><code>Runtime.enable</code> 부작용</td><td>이 도메인을 켜면 console 직렬화와 <code>Error.stack</code> 접근에 흔적이 남는다. 상용 봇 탐지가 쓰는 신호다.</td><td><span class="ok">없음.</span> Fetch · Input · Page 도메인만 쓴다.</td></tr>
+        <tr data-k="a1 l1 l2 l3"><td>행동 패턴</td><td>마우스 경로 없는 클릭, 지연 0의 입력, 일정한 간격, 이미지 · CSS를 받지 않는 요청.</td><td><span class="no">남는다.</span> 입력 사이에 사람 같은 지연을 두고 좌표를 조금씩 바꾸면 줄어든다.</td></tr>
+        <tr><td>헤드리스 흔적</td><td>헤드리스 크롬의 UA · 플러그인 · WebGL 값.</td><td><span class="ok">해당 없음.</span> 사람이 쓰는 화면 있는 크롬이다.</td></tr>
+      </tbody>
+    </table>
+    <p class="note">사내 시스템처럼 봇 탐지 JS가 없는 곳에서는 이 표도 해당이 없어, 서버 쪽에서는 사실상 구별할 수 없다.</p>
+
+    <h3>4 · 스크립트가 거절을 넘는 방법과 그 값</h3>
+    <table class="cmp">
+      <thead><tr><th>방법</th><th>넘는 것</th><th>치르는 값</th></tr></thead>
+      <tbody>
+        <tr data-k="s2 s4"><td>쿠키 내보내기</td><td>세션 · JS가 심은 쿠키</td><td>수명이 다하면 다시 내보낸다. IP · UA에 묶인 쿠키는 통하지 않는다.</td></tr>
+        <tr data-k="s3"><td>TLS · h2 위장<span class="sub">curl_cffi · tls-client</span></td><td>지문</td><td>크롬 판이 바뀌면 다시 맞춰야 한다.</td></tr>
+        <tr data-k="s2"><td>헤더 복제</td><td>헤더 집합 · 순서</td><td>UA · 지문 · 헤더가 서로 맞아야 한다. 하나만 어긋나도 소용없다.</td></tr>
+        <tr data-k="s4"><td>토큰 생성 역산</td><td>CSRF · 봇 탐지 토큰</td><td>난독화된 JS를 풀어야 하고, 규칙이 바뀌면 다시 푼다.</td></tr>
+        <tr data-k="s5"><td>헤드리스 브라우저로 전환</td><td>JS 챌린지</td><td>결국 브라우저 방식이다. 헤드리스 흔적 탐지가 새로 생긴다.</td></tr>
+      </tbody>
+    </table>
+    <p>하나하나는 넘을 수 있지만 서버가 규칙을 바꿀 때마다 되풀이되는 소모전이다. CDP는 이 표 전체를 크롬에 맡긴다.</p>
+
+    <h3>5 · 속도 · 규모 · 유지보수</h3>
+    <table class="cmp">
+      <thead><tr><th>항목</th><th>일반 스크립트</th><th>CDP</th></tr></thead>
+      <tbody>
+        <tr><td>속도 · 병렬</td><td><span class="ok">빠르다.</span> 수백 건을 병렬로 보낸다. 화면을 그리지 않는다.</td><td><span class="no">느리다.</span> 탭 단위로 한 화면씩 간다. 크롬이 떠 있어야 한다.</td></tr>
+        <tr><td>실행 환경</td><td>화면 없는 서버에서 예약 실행할 수 있다.</td><td>사람의 PC와 크롬이 필요하다. 사람이 쓰는 동안 같이 돈다.</td></tr>
+        <tr><td>깨지는 원인</td><td>API 주소 · 파라미터 · 토큰 규칙 변경.</td><td>화면 구조 · 버튼 위치 변경. 응답 가로채기(Fetch)는 화면이 바뀌어도 버틴다.</td></tr>
+        <tr data-k="c2 d1"><td>받는 데이터</td><td>응답 본문 그대로.</td><td>응답 본문 그대로(<code>Fetch.getResponseBody</code>). 화면을 긁을 필요가 없다.</td></tr>
+        <tr><td>책임 소재</td><td>스크립트 전용 계정 · 키로 분리할 수 있다.</td><td>서버 로그에 그 사람 계정의 행동으로 남는다.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>6 · 실무에서는 섞어 쓴다</h3>
+    <ol>
+      <li><strong>관문은 CDP.</strong> 로그인 · SSO · MFA · 챌린지는 사람이 쓰는 크롬이 넘는다.</li>
+      <li><strong>대량은 스크립트.</strong> 세션 쿠키를 넘겨받아 빠르게 돈다. 쿠키가 지문이나 IP에 묶여 있거나 수명이 짧으면 안 된다.</li>
+      <li><strong>그때는 크롬 안에서.</strong> CDP로 페이지를 넘기며 <code>Fetch.getResponseBody</code>로 받아 적는다. 이 흐름도의 ‘수집 · DB 저장’ 재생이 그것이다.</li>
+    </ol>
+
+    <h3>7 · 어느 쪽을 고를까</h3>
+    <ul>
+      <li>로그인 · SSO · MFA가 있다 → <strong>CDP</strong></li>
+      <li>봇 탐지 JS · 챌린지가 있다 → <strong>CDP</strong></li>
+      <li>공개 API, 토큰 없음, 대량 → <strong>스크립트</strong></li>
+      <li>사내 시스템, 세션 쿠키만 있으면 됨 → 둘 다 된다. 대량이면 스크립트, 화면 조작이 필요하면 CDP</li>
+      <li>결과를 사람 화면에서도 봐야 한다 → <strong>CDP</strong></li>
+    </ul>
+
+    <h3>8 · 유의점</h3>
+    <ul>
+      <li>CDP로 붙은 자동화는 그 사람 계정의 행동으로 기록된다. 잘못 누르면 그 사람이 누른 것이다.</li>
+      <li>사내 시스템이나 허가받은 대상에서 쓰는 방식이다. 외부 사이트가 봇 탐지로 막는 것을 뚫는 일은 이용약관 위반이 될 수 있다.</li>
+    </ul>
+  </div>
+</aside>
+
+<script>
+(function(){
+  /* 재생: 한 단계씩 넘긴다.
+     plain  기본 접속       = 1~6
+     mod    CDP 응답 고치기  = 준비 → 입력 · 클릭 → 2~5 → 멈춤 · 읽기 · 고침 → 6
+     col    CDP 수집 · DB    = 준비 → 입력 · 클릭 → 2~5 → 멈춤 · 읽기 · 저장 · 넘김 → 6
+     CDP 재생에서는 ① 사용자 동작이 없다. 스크립트가 입력과 클릭을 대신한다 (a1 · l1~l3)
+     login  CDP 자동 로그인  = 준비 → 아이디 · 비밀번호 · 클릭 → 2~6 → 확인  (화면 · 메시지 · 서버 처리가 로그인 장면으로 바뀐다)
+     raw    일반 스크립트 접속 = 준비 → 2~5 (서버가 접속 판별에서 거절, 403) → 6 → 비교  (브라우저 없는 스크립트 장면. 왼쪽 위 사용자 상자는 '누가 서버에 보내는가' 경로 비교로, 오른쪽 아래는 서버가 보는 두 요청으로 바뀐다)
+     ▶ 버튼은 자동으로 넘기고, 이전 · 다음 · 단계 표를 누르면 그 단계에서 멈춘다.
+     옆 칸(자세히 보기)은 D 로 여닫고, 열려 있으면 지금 단계와 관련된 표 줄(data-k)에 색이 든다.
+     키: 1~5 = 재생 고르기, ← → = 한 단계, Space = 자동 · 멈춤, R = 처음부터, D = 자세히 보기, Esc = 옆 칸 닫기 · 전체 보기 */
+  var svg=document.getElementById('dg');
+  var MODES=['plain','mod','col','login','raw'];
+  var SEQ={
+    plain:['s1','s2','s3','s4','s5','s6'],
+    mod:['c0','a1','s2','s3','s4','s5','c1','c2','c3','s6'],
+    col:['c0','a1','s2','s3','s4','s5','c1','c2','d1','d2','s6'],
+    login:['l0','l1','l2','l3','s2','s3','s4','s5','s6','l4'],
+    raw:['r0','s2','s3','s4','s5','s6','r6']
+  };
+  var SCENE={plain:'search',mod:'search',col:'search',login:'login',raw:'script'};
+  var DUR={a1:3600,c0:3400,s1:2900,s2:3200,s3:3900,s4:4500,s5:4600,c1:3400,c2:3600,c3:3400,d1:4600,d2:3000,s6:4200,l0:3600,l1:3000,l2:3000,l3:3400,l4:3600,r0:4600,r6:7000};
+  /* 단계 표 이름. 재생마다 다른 이름은 {재생 이름: 이름, _: 그 밖} */
+  var LABEL={a1:'입력 · 클릭',c0:'준비',s1:'① 동작',s2:'② 요청',s3:'③ 전송',s4:'④ 처리',s5:'⑤ 응답',c1:'멈춤',c2:'읽기',c3:'고침',d1:'저장',d2:'넘김',s6:{_:'⑥ 표시',raw:'⑥ 결과'},l0:'준비',l1:'아이디',l2:'비밀번호',l3:'클릭',l4:'확인',r0:'준비',r6:'비교'};
+  /* 단계 설명. 재생마다 다른 문장은 {재생 이름: 문장, _: 그 밖} 으로 적는다 */
+  var CAP={
+    rest:'<strong>전체 흐름.</strong> 브라우저가 요청을 HTTPS로 보내고 서버의 응답을 화면에 그린다. CDP를 쓰면 스크립트가 사용자 대신 브라우저를 조작해 입력 · 클릭을 하고, 응답을 고치거나 내 DB에 저장하고, 보관한 정보로 로그인한다. 왼쪽 아래 ‘일반 스크립트’는 크롬을 거치지 않고 스크립트가 서버에 직접 요청했을 때 서버가 거절하는 과정이고, 오른쪽 위 ‘자세히 보기’(D)에 두 방식의 차이를 표로 정리했다. 값은 설명용 예시다.',
+    r0:'<strong>준비 · 크롬을 거치지 않는다.</strong> CDP 재생에서는 요청을 만들어 서버에 보내는 쪽이 크롬이었다. 일반 스크립트는 크롬에 붙지 않고 <code>requests</code> 같은 HTTP 라이브러리로 요청을 직접 만들어 서버에 직접 보낸다. 사용자 동작도 화면도 없고, 크롬이 만들어 둔 세션 쿠키와 토큰도 없다. 왼쪽 위 상자에 두 경로를 나란히 그렸다.',
+    a1:'<strong>CDP · 스크립트가 대신 조작한다.</strong> 사용자는 키보드와 마우스에 손대지 않는다. 스크립트가 <code>Input.insertText</code>로 검색어를 넣고 <code>Input.dispatchMouseEvent</code>로 검색 버튼을 누른다. 브라우저에게는 사람이 한 것과 같다.',
+    c0:{mod:'<strong>준비 · CDP 연결.</strong> 자동화 스크립트가 크롬의 디버깅 포트(9333)에 WebSocket으로 붙고, <code>Fetch.enable</code>로 응답이 오면 멈춰 달라고 걸어 둔다. 아직 요청은 나가지 않았다.',
+        col:'<strong>준비 · CDP 연결.</strong> 자동화 스크립트가 크롬의 디버깅 포트(9333)에 WebSocket으로 붙고, <code>Fetch.enable</code>로 응답이 오면 멈춰 달라고 걸어 둔다. 이번에는 값을 고치지 않고 읽어 가기만 한다.'},
+    s1:'<strong>① 사용자가 브라우저에서 동작한다.</strong> 검색어 ‘아이폰’을 입력하고 검색 버튼을 누른다.',
+    s2:{_:'<strong>② 브라우저가 HTTP 요청 메시지를 만든다.</strong> 요청 라인(무엇을 요청하는가), 헤더(추가 정보), 본문으로 이루어진다. 이 예시는 GET 요청이라 본문이 없다.',
+        login:'<strong>② 브라우저가 HTTP 요청 메시지를 만든다.</strong> 이번에는 POST 요청이라 본문이 있고, 그 안에 CDP가 넣은 아이디와 비밀번호가 들어간다.',
+        raw:'<strong>② 스크립트가 HTTP 요청 메시지를 직접 만든다.</strong> 크롬이 만들어 주지 않는다. 요청 라인은 크롬과 같지만 헤더는 스크립트가 적은 것만 있다. <code>User-Agent</code>는 python-requests고, 세션 쿠키와 브라우저만 보내는 <code>sec-ch-ua</code>, JS가 계산하는 토큰이 빠져 있다.'},
+    s3:{_:'<strong>③ 크롬이 HTTPS로 서버에 보낸다.</strong> 크롬의 네트워크 스택이 요청을 암호화해 인터넷으로 내보낸다. 길목에서는 내용이 보이지 않는다.',
+        login:'<strong>③ 크롬이 HTTPS로 서버에 보낸다.</strong> 비밀번호가 든 본문도 암호화되어 나간다. 길목에서는 내용이 보이지 않는다.',
+        raw:'<strong>③ 스크립트가 HTTPS로 서버에 직접 보낸다.</strong> 크롬을 거치지 않으므로 TLS 악수도 파이썬 OpenSSL이 한다. 본문은 암호화되지만 악수는 암호화 전에 일어나, 암호 방식 목록과 확장 순서가 크롬과 달라 서버에는 지문(JA3)으로 남는다.'},
+    s4:{_:'<strong>④ 서버가 요청을 처리한다.</strong> 요청을 받고, 쿠키로 인증을 확인하고, 파라미터를 검증한 뒤 검색 로직을 돌려 데이터베이스를 조회한다.',
+        login:'<strong>④ 서버가 로그인을 처리한다.</strong> 요청을 받고 형식을 검증한 뒤, 계정을 찾아 비밀번호를 대조하고 세션을 만든다.',
+        raw:'<strong>④ 서버가 접속을 판별하고 거절한다.</strong> TLS 지문, 헤더 집합, 쿠키 유무가 크롬이 보낸 것과 다르다. 하나만 어긋나도 거절 사유가 되고, 인증 확인과 검색 로직까지 가지 않는다. 앞의 CDP 재생에서는 이 자리에 ‘크롬이 보낸 요청과 같다’가 뜬다.'},
+    s5:{_:'<strong>⑤ 서버가 HTTP 응답 메시지를 돌려보낸다.</strong> 상태 라인(처리 결과), 헤더, 본문(JSON)이 다시 암호화되어 브라우저로 간다.',
+        login:'<strong>⑤ 서버가 HTTP 응답 메시지를 돌려보낸다.</strong> <code>Set-Cookie</code> 헤더에 세션 쿠키가 실려 온다. 이 쿠키가 로그인 상태를 증명한다.',
+        raw:'<strong>⑤ 서버가 403 Forbidden을 돌려보낸다.</strong> 검색 결과도 세션 쿠키도 없다. 봇 탐지 서비스를 쓰는 사이트라면 JS 챌린지 페이지를 주는데, JS가 돌지 않는 스크립트는 그것도 넘지 못한다.'},
+    c1:'<strong>CDP · 응답을 멈춘다.</strong> 복호화된 응답이 화면으로 가기 전에 멈추고, 크롬이 <code>Fetch.requestPaused</code> 이벤트로 스크립트에 알린다.',
+    c2:{mod:'<strong>CDP · 내용을 읽는다.</strong> 스크립트가 <code>Fetch.getResponseBody</code>로 응답 본문을 가져온다. 브라우저 안이라 HTTPS로 받은 응답도 평문으로 보인다.',
+        col:'<strong>CDP · 내용을 읽는다.</strong> 스크립트가 <code>Fetch.getResponseBody</code>로 응답 본문을 가져온다. 상품 네 건의 모델 이름과 가격이 평문으로 들어 있다.'},
+    c3:'<strong>CDP · 고쳐서 넘긴다.</strong> price를 고친 응답을 <code>Fetch.fulfillRequest</code>로 넘긴다. 브라우저는 이것을 서버가 보낸 응답으로 받아들인다.',
+    d1:'<strong>CDP · 내 DB에 저장한다.</strong> 스크립트가 응답 본문에서 모델 이름과 가격을 뽑아 내 DB(prices.db)에 넣는다. 화면을 긁지 않고 서버가 준 데이터를 그대로 받아 적는다.',
+    d2:'<strong>CDP · 그대로 넘긴다.</strong> <code>Fetch.continueRequest</code>로 멈춤을 풀면 응답이 고쳐지지 않은 채 화면으로 간다.',
+    s6:{plain:'<strong>⑥ 브라우저가 응답을 화면에 그린다.</strong> 네트워크 스택이 복호화한 응답을 브라우저가 해석해 표시한다. 서버가 보낸 값이 그대로 보인다.',
+        mod:'<strong>⑥ 브라우저가 고친 응답을 화면에 그린다.</strong> 서버가 보낸 원본은 1,250,000원 그대로인데 화면에는 990,000원이 보인다. 화면에 보이는 것은 브라우저 안에서 처리된 결과다.',
+        col:'<strong>⑥ 브라우저가 응답을 화면에 그린다.</strong> 화면은 평소와 같다. 그 사이 내 DB에는 모델과 가격 네 건이 쌓였다.',
+        login:'<strong>⑥ 브라우저가 로그인된 화면을 그린다.</strong> 브라우저는 세션 쿠키를 저장해 두고, 다음 요청부터 <code>Cookie</code> 헤더에 실어 보낸다.',
+        raw:'<strong>⑥ 스크립트는 거절 한 줄만 받는다.</strong> 같은 주소에 같은 검색어를 보냈는데 결과가 다르다. 서버가 가른 것은 ‘누가 보냈는가’가 아니라 ‘무엇이 넘어왔는가’다.'},
+    r6:'<strong>비교 · CDP는 빌리고, 스크립트는 흉내 낸다.</strong> 경로부터 다르다. CDP는 스크립트 → 크롬 → 서버이고, 서버에 보내는 쪽은 크롬이다. 일반 스크립트는 스크립트 → 서버이고, 크롬을 거치지 않는다. 그래서 CDP는 서버가 이미 믿는 진짜 크롬이 보내므로 지문 · 헤더 · 쿠키 · 토큰이 크롬 그대로고 거절할 근거가 없다. 스크립트는 쿠키 복사, TLS 지문 위장, 토큰 역산으로 흉내 낼 수 있지만 서버가 규칙을 바꿀 때마다 다시 해야 한다. CDP를 알아채는 쪽은 서버가 아니라 서버가 내려보낸 봇 탐지 JS인데, 쓰던 크롬에 Fetch · Input만으로 붙으면 그 신호도 없다. 지문 · 토큰 · 속도 · 유지보수까지 항목별 표는 ‘자세히 보기’(D)에 있다.',
+    l0:'<strong>준비 · 로그인 정보를 꺼낸다.</strong> 자동화 스크립트가 크롬의 디버깅 포트(9333)에 붙고, PC 보관함에 넣어 둔 내 아이디와 비밀번호를 읽는다. 비밀번호는 코드에 적어 두지 않는다.',
+    l1:'<strong>CDP · 아이디를 넣는다.</strong> 아이디 칸에 초점을 주고 <code>Input.insertText</code>로 글자를 넣는다. 사용자는 키보드에 손대지 않는다.',
+    l2:'<strong>CDP · 비밀번호를 넣는다.</strong> 같은 방법으로 비밀번호 칸을 채운다. 화면에는 가려진 점으로만 보인다.',
+    l3:'<strong>CDP · 로그인 버튼을 누른다.</strong> <code>Input.dispatchMouseEvent</code>로 버튼 자리를 눌렀다 뗀다. 브라우저에게는 사람이 누른 것과 같다.',
+    l4:'<strong>CDP · 로그인됐는지 확인한다.</strong> <code>Runtime.evaluate</code>로 화면의 이름 표시를 읽어 확인한다. 여기서부터 검색이나 수집 같은 다음 작업을 이어 갈 수 있다.'
+  };
+  var els=[].slice.call(svg.querySelectorAll('[data-s]'));
+  var zones=[].slice.call(svg.querySelectorAll('.zone'));
+  var stepsEl=document.getElementById('steps'),capEl=document.getElementById('cap');
+  var goB={};MODES.forEach(function(m){goB[m]=document.getElementById('go-'+m);});
+  var prevB=document.getElementById('prev'),nextB=document.getElementById('next'),autoB=document.getElementById('auto'),endB=document.getElementById('end');
+  var STATES=['rest','next','now','past','off'];
+  var mode='plain',i=-1,auto=false,timer=null;
+  var side=document.getElementById('side'),sideT=document.getElementById('side-t'),sideX=document.getElementById('side-x');
+  var sideRows=[].slice.call(side.querySelectorAll('[data-k]'));
+
+  function buildSteps(){
+    var h='';
+    SEQ[mode].forEach(function(id,k){
+      var l=LABEL[id],c=id.charAt(0);
+      h+='<li><button type="button" class="chip'+(c==='s'?'':(c==='r'?' raw':' cdp'))+'" data-i="'+k+'">'+(typeof l==='string'?l:(l[mode]||l._))+'</button></li>';
+    });
+    stepsEl.innerHTML=h;
+  }
+  /* data-s · data-until 은 재생마다 따로 줄 수 있다 (data-s-mod 처럼) */
+  function attr(el,name){return el.getAttribute(name+'-'+mode)||el.getAttribute(name);}
+  function stateOf(el,seq){
+    if(i<0)return 'rest';
+    var m=el.getAttribute('data-m');
+    if(m&&(' '+m+' ').indexOf(' '+mode+' ')<0)return 'off';
+    var j=seq.indexOf(attr(el,'data-s'));
+    if(j<0)return 'off';
+    if(j===i)return 'now';
+    if(j>i)return 'next';
+    var u=attr(el,'data-until');
+    if(u){var k=seq.indexOf(u);if(k>=0&&i>=k)return 'off';}
+    return 'past';
+  }
+  /* replay 를 주면 지금 단계의 표시를 처음부터 다시 움직인다 */
+  function render(replay){
+    var seq=SEQ[mode],playing=i>=0,cur=playing?seq[i]:null,todo=[];
+    svg.classList.toggle('playing',playing);
+    svg.setAttribute('data-mode',playing?mode:'rest');
+    svg.setAttribute('data-sc',playing?SCENE[mode]:'search');
+    els.forEach(function(el){
+      var c=stateOf(el,seq);
+      if(el._c===c&&!(replay&&c==='now'))return;
+      STATES.forEach(function(s){el.classList.remove(s);});
+      el._c=c;
+      todo.push(el);
+    });
+    void svg.getBoundingClientRect();
+    todo.forEach(function(el){el.classList.add(el._c);});
+    zones.forEach(function(z){
+      z.classList.toggle('dim',playing&&(' '+z.getAttribute('data-z')+' ').indexOf(' '+cur+' ')<0);
+    });
+    sideRows.forEach(function(r){
+      r.classList.toggle('cur',playing&&(' '+r.getAttribute('data-k')+' ').indexOf(' '+cur+' ')>=0);
+    });
+    [].forEach.call(stepsEl.querySelectorAll('.chip'),function(b){
+      var k=+b.getAttribute('data-i');
+      if(k===i)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');
+      b.classList.toggle('done',playing&&k<i);
+    });
+    var cap=playing?CAP[cur]:CAP.rest;
+    capEl.innerHTML=typeof cap==='string'?cap:(cap[mode]||cap._);
+    var last=playing&&i>=seq.length-1;
+    prevB.disabled=i<=0;
+    nextB.disabled=last;
+    endB.disabled=!playing;
+    autoB.textContent=auto?'일시 정지':(last?'다시 재생':'자동 재생');
+    MODES.forEach(function(m){goB[m].setAttribute('aria-pressed',playing&&mode===m?'true':'false');});
+  }
+  function schedule(){
+    clearTimeout(timer);
+    if(!auto||i<0)return;
+    var seq=SEQ[mode];
+    timer=setTimeout(function(){
+      if(i<seq.length-1){i++;render(true);schedule();}
+      else{auto=false;render(false);}
+    },DUR[seq[i]]);
+  }
+  function start(m,paused){mode=m;i=0;auto=!paused;buildSteps();render(true);schedule();}
+  function jump(k){i=k;auto=false;render(true);schedule();}
+  function next(){
+    if(i<0){start(mode,true);return;}
+    if(i<SEQ[mode].length-1)jump(i+1);
+  }
+  function prev(){if(i>0)jump(i-1);}
+  function toggleAuto(){
+    if(i<0||(!auto&&i>=SEQ[mode].length-1)){start(mode);return;}
+    auto=!auto;render(false);schedule();
+  }
+  function end(){i=-1;auto=false;render(false);schedule();}
+  function sideOpen(o){
+    side.hidden=!o;
+    sideT.setAttribute('aria-expanded',o?'true':'false');
+    sideT.textContent=o?'자세히 닫기':'자세히 보기';
+    if(o)sideX.focus();else sideT.focus();
+  }
+  sideT.addEventListener('click',function(){sideOpen(side.hidden);});
+  sideX.addEventListener('click',function(){sideOpen(false);});
+  var sideHot=document.getElementById('side-hot');
+  sideHot.addEventListener('click',function(){sideOpen(true);});
+  sideHot.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();sideOpen(true);}
+  });
+
+  MODES.forEach(function(m){
+    goB[m].addEventListener('click',function(){start(m);});
+    var hot=document.getElementById('hot-'+m);
+    if(!hot)return;
+    hot.addEventListener('click',function(){start(m);});
+    hot.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();start(m);}
+    });
+  });
+  prevB.addEventListener('click',prev);
+  nextB.addEventListener('click',next);
+  autoB.addEventListener('click',toggleAuto);
+  endB.addEventListener('click',end);
+  stepsEl.addEventListener('click',function(e){
+    var b=e.target.closest?e.target.closest('.chip'):null;
+    if(b)jump(+b.getAttribute('data-i'));
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.altKey||e.ctrlKey||e.metaKey)return;
+    var k=e.key,onBtn=e.target&&e.target.tagName==='BUTTON';
+    if(k>='1'&&k<='5')start(MODES[+k-1]);
+    else if(k==='ArrowRight'||k==='PageDown'){next();e.preventDefault();}
+    else if(k==='ArrowLeft'||k==='PageUp'){prev();e.preventDefault();}
+    else if(k===' '&&!onBtn){toggleAuto();e.preventDefault();}
+    else if(k==='r'||k==='R'||k==='ㄱ'){if(i>=0)start(mode);}
+    else if(k==='d'||k==='D'||k==='ㅇ'){sideOpen(side.hidden);}
+    else if(k==='Escape'){if(!side.hidden){sideOpen(false);e.preventDefault();}else if(i>=0){end();e.preventDefault();}}
+  });
+
+  buildSteps();
+  render(false);   /* 열자마자 재생하지 않는다. 눌러야 시작한다 */
+
+  var fs=document.getElementById('fs'),root=document.documentElement;
+  if(!document.fullscreenEnabled||!root.requestFullscreen){fs.hidden=true;return;}
+  fs.addEventListener('click',function(){
+    if(document.fullscreenElement){document.exitFullscreen();return;}
+    root.requestFullscreen().catch(function(){fs.hidden=true;});
+  });
+  document.addEventListener('fullscreenchange',function(){
+    fs.textContent=document.fullscreenElement?'전체 화면 끝내기':'전체 화면';
+  });
+})();
+</script>
+</body>
+</html>

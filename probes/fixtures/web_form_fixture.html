@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>범용 폼 fixture</title></head>
+<body>
+<!-- web_probe 오프라인 검증용 비식별 모사 폼: 일반 입력·select·textarea·체크박스·iframe·XHR 저장·confirm 다이얼로그 -->
+<h1>신청서(fixture)</h1>
+<form id="applyForm" onsubmit="return false;">
+  <table>
+    <tr><th><label for="userName">이름</label></th><td><input id="userName" name="userName" maxlength="20"></td></tr>
+    <tr><th>금액</th><td><input id="amount" name="amount" type="number"></td></tr>
+    <tr><th>분류</th><td><select id="category" name="category"><option value="">선택</option><option value="a">출장</option><option value="b">구매</option></select></td></tr>
+    <tr><th>메모</th><td><textarea id="memo" name="memo"></textarea></td></tr>
+    <tr><th>동의</th><td><input id="agree_0" name="agree" type="checkbox" value="y"> 예</td></tr>
+  </table>
+  <button id="btnSave" type="button" onclick="save()">임시저장</button>
+</form>
+<iframe id="sub" name="subframe" srcdoc="<input id='subField' name='subField' placeholder='프레임 입력'>"></iframe>
+<p id="msg"></p>
+<script>
+function save() {
+  if (!confirm('저장하시겠습니까?')) { document.getElementById('msg').innerText = '취소됨'; return; }
+  const body = new URLSearchParams(new FormData(document.getElementById('applyForm'))).toString();
+  fetch('about:blank#save', { method: 'POST', body }).catch(() => {});
+  fetch('data:application/json,{"ok":true}').catch(() => {});
+  document.getElementById('msg').innerText = '저장됨';
+}
+</script>
+</body>
+</html>
